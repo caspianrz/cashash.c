@@ -148,6 +148,77 @@ static Suite *cashash_suite(void) {
   return suite;
 }
 
+START_TEST(test_dynamic_growth) {
+  cashash_t *map = cashash_create(2);
+
+  ck_assert_ptr_nonnull(map);
+  ck_assert_uint_eq(cashash_bucket_count(map), 2);
+
+  ck_assert(cashash_insert(map, "one", "1"));
+  ck_assert(cashash_insert(map, "two", "2"));
+
+  ck_assert_uint_gt(cashash_bucket_count(map), 2);
+
+  ck_assert_uint_eq(cashash_size(map), 2);
+
+  ck_assert_str_eq(cashash_find(map, "one"), "1");
+  ck_assert_str_eq(cashash_find(map, "two"), "2");
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_dynamic_growth_preserves_many_items) {
+  cashash_t *map = cashash_create(1);
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, "a", "1"));
+  ck_assert(cashash_insert(map, "b", "2"));
+  ck_assert(cashash_insert(map, "c", "3"));
+  ck_assert(cashash_insert(map, "d", "4"));
+  ck_assert(cashash_insert(map, "e", "5"));
+  ck_assert(cashash_insert(map, "f", "6"));
+  ck_assert(cashash_insert(map, "g", "7"));
+  ck_assert(cashash_insert(map, "h", "8"));
+
+  ck_assert_uint_eq(cashash_size(map), 8);
+  ck_assert_uint_gt(cashash_bucket_count(map), 1);
+
+  ck_assert_str_eq(cashash_find(map, "a"), "1");
+  ck_assert_str_eq(cashash_find(map, "b"), "2");
+  ck_assert_str_eq(cashash_find(map, "c"), "3");
+  ck_assert_str_eq(cashash_find(map, "d"), "4");
+  ck_assert_str_eq(cashash_find(map, "e"), "5");
+  ck_assert_str_eq(cashash_find(map, "f"), "6");
+  ck_assert_str_eq(cashash_find(map, "g"), "7");
+  ck_assert_str_eq(cashash_find(map, "h"), "8");
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_update_existing_key_does_not_grow_or_change_size) {
+  cashash_t *map = cashash_create(8);
+
+  size_t before_bucket_count;
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, "name", "old"));
+
+  before_bucket_count = cashash_bucket_count(map);
+
+  ck_assert(cashash_insert(map, "name", "new"));
+
+  ck_assert_uint_eq(cashash_size(map), 1);
+  ck_assert_uint_eq(cashash_bucket_count(map), before_bucket_count);
+  ck_assert_str_eq(cashash_find(map, "name"), "new");
+
+  cashash_destroy(map);
+}
+END_TEST
+
 int main(void) {
   Suite *suite = cashash_suite();
   SRunner *runner = srunner_create(suite);

@@ -10,7 +10,7 @@ It provides a simple string-key hash table with generic pointer values. The libr
 - Generic `void *` values
 - Separate chaining
 - FNV-1a hashing
-- Fixed bucket count
+- Dynamic bucket count
 - Static library builds
 - Cross-platform support for Linux, macOS, and Windows
 
