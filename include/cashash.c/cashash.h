@@ -3,8 +3,8 @@
 #ifndef CASHASH_C_H
 #define CASHASH_C_H
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 /**
  * @file cashash.c/cashash.h
@@ -13,12 +13,17 @@
  * cashash is a small C hash table library using:
  *
  * - string keys
+ * - generic `void *` values
  * - separate chaining
  * - FNV-1a hashing
- * - fixed bucket count
+ * - automatic dynamic growth
  *
  * The table stores generic `void *` values. It owns and frees copied keys,
  * but it does not own or free inserted values.
+ *
+ * The table starts with the bucket count passed to cashash_create(). As new
+ * key-value pairs are inserted, the table may allocate a larger bucket array
+ * and rehash existing entries to keep collision chains shorter.
  */
 
 /**
@@ -109,6 +114,18 @@ void *cashash_find(const cashash_t *table, const char *key);
  * @return 0 if `table` is NULL.
  */
 size_t cashash_size(const cashash_t *table);
+
+/**
+ * @brief Get the current bucket count.
+ *
+ * @param table Hash table.
+ *
+ * @return Current number of buckets.
+ * @return 0 if `table` is NULL.
+ *
+ * @note The bucket count may increase automatically when dynamic growth occurs.
+ */
+size_t cashash_bucket_count(const cashash_t *table);
 
 /**
  * @}
