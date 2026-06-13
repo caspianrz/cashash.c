@@ -69,8 +69,24 @@ if(CAS_BUILD_TESTS)
     target_link_libraries(test_cashash
         PRIVATE
             cashash::cashash
-            PkgConfig::CHECK
     )
+
+	if(WIN32)
+        find_package(check CONFIG REQUIRED)
+
+        target_link_libraries(test_cashash
+            PRIVATE
+                $<IF:$<TARGET_EXISTS:Check::check>,Check::check,Check::checkShared>
+        )
+    else()
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(CHECK REQUIRED IMPORTED_TARGET check)
+
+        target_link_libraries(test_cashash
+            PRIVATE
+                PkgConfig::CHECK
+        )
+    endif()
 
     add_test(NAME cashash_tests COMMAND test_cashash)
 endif()
