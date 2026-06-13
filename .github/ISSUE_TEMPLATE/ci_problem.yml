@@ -1,0 +1,105 @@
+name: CI problem
+description: Report a GitHub Actions, release, or GitHub Pages workflow problem
+title: "[CI]: "
+labels:
+  - ci
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for problems with GitHub Actions, cross-platform builds, release workflows, or GitHub Pages deployment.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: CI problem summary
+      description: Briefly describe what failed.
+      placeholder: "Example: The Windows arm64 release job fails during CMake configure."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Workflow
+      options:
+        - CI
+        - Release
+        - Docs / GitHub Pages
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux x86_64
+        - Linux arm64
+        - macOS x86_64
+        - macOS arm64
+        - Windows x86_64
+        - Windows arm64
+        - Multiple platforms
+        - Not platform-specific
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: failing-step
+    attributes:
+      label: Failing step
+      description: Which workflow step failed?
+      placeholder: "Example: Configure on Windows"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Paste the important part of the GitHub Actions log.
+      render: text
+      placeholder: |
+        Paste the failing log section here.
+    validations:
+      required: true
+
+  - type: input
+    id: run-link
+    attributes:
+      label: Workflow run link
+      description: Link to the failed GitHub Actions run, if available.
+      placeholder: "https://github.com/owner/repo/actions/runs/..."
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit or tag
+      description: Commit hash, branch, or tag where the workflow failed.
+      placeholder: "v0.1.0, main, or commit hash"
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should the workflow have done?
+      placeholder: "Example: The workflow should build the static library and upload the release asset."
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any extra information, related issues, or suspected cause here.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked that this CI problem has not already been reported.
+          required: true
+        - label: I included the relevant failing log output.
+          required: true

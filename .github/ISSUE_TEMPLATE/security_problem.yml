@@ -1,0 +1,109 @@
+name: Security report
+description: Report a possible security or memory-safety issue
+title: "[Security]: "
+labels:
+  - security
+  - memory-safety
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a possible security issue in `cashash.c`.
+
+        If this issue is sensitive or exploitable, please do **not** include public proof-of-concept details here. Use GitHub private vulnerability reporting if it is enabled for this repository.
+
+        `cashash.c` is a personal MIT-licensed project provided as-is, without warranty or a guarantee that it is free from security issues. Valid reports are still welcome, and accepted issues will be fixed when possible.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Security issue summary
+      description: Briefly describe the possible issue.
+      placeholder: "Example: Possible use-after-free when destroying a table after updating an entry."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Issue category
+      options:
+        - Memory leak
+        - Use-after-free
+        - Buffer overflow
+        - Invalid free
+        - Undefined behavior
+        - Crash / denial of service
+        - Allocation failure handling
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Affected version
+      description: Which version, tag, or commit appears to be affected?
+      placeholder: "v0.1.0 or commit hash"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux x86_64
+        - Linux arm64
+        - macOS x86_64
+        - macOS arm64
+        - Windows x86_64
+        - Windows arm64
+        - Multiple platforms
+        - Unknown
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Potential impact
+      description: What could happen if this issue is triggered?
+      placeholder: "Example: Crash, memory corruption, incorrect lookup result, or possible denial of service."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction details
+      description: Provide safe reproduction details. Avoid posting exploit details if the issue is sensitive.
+      placeholder: |
+        Describe the conditions needed to trigger the issue.
+        Include a minimal example only if it is safe to share publicly.
+
+  - type: textarea
+    id: sanitizer-output
+    attributes:
+      label: Sanitizer, Valgrind, or crash output
+      description: Paste AddressSanitizer, UndefinedBehaviorSanitizer, Valgrind, debugger, or crash output if available.
+      render: text
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested fix
+      description: If you know a possible fix, describe it here.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I understand that sensitive vulnerabilities should be reported privately when possible.
+          required: true
+        - label: I included the affected version or commit.
+          required: true
+        - label: I understand that this is a personal MIT-licensed project provided as-is.
+          required: true

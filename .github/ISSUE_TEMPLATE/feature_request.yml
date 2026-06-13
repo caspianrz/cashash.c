@@ -1,0 +1,90 @@
+name: Feature request
+description: Suggest an idea or improvement for cashash.c
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement for `cashash.c`.
+
+        Please describe the feature clearly and explain why it would be useful.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature summary
+      description: Briefly describe the feature or improvement.
+      placeholder: "Example: Add a cashash_remove() function for deleting keys."
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why should this feature be added?
+      placeholder: "Example: Users currently cannot remove entries without destroying the whole table."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-api
+    attributes:
+      label: Proposed API or behavior
+      description: Describe the API, behavior, or design you have in mind.
+      render: c
+      placeholder: |
+        bool cashash_remove(cashash_t *table, const char *key);
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered another approach?
+      placeholder: "Example: Rebuilding the table manually, or setting values to NULL."
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature category
+      options:
+        - Public API
+        - Hashing behavior
+        - Memory management
+        - Build system / CMake
+        - Documentation
+        - Testing / CI
+        - Release packaging
+        - Platform support
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: compatibility
+    attributes:
+      label: Compatibility impact
+      options:
+        - label: This feature should not break the existing public API.
+        - label: This feature may require a breaking API change.
+        - label: I am not sure about compatibility impact.
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any extra notes, examples, links, or related issues here.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked that this feature has not already been requested.
+          required: true
+        - label: I explained why this feature would be useful.
+          required: true
+        - label: I understand that this is a personal MIT-licensed project provided as-is.
+          required: true

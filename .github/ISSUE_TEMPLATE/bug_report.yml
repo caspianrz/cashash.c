@@ -1,0 +1,135 @@
+name: Bug report
+description: Report a bug or incorrect behavior in cashash.c
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug in `cashash.c`.
+
+        Please include enough information to reproduce the issue.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Bug summary
+      description: Briefly describe what went wrong.
+      placeholder: "Example: cashash_find() returns NULL after inserting a valid key."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+      placeholder: "Example: cashash_find() should return the value associated with the inserted key."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened?
+      placeholder: "Example: cashash_find() returned NULL."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: List the steps or code needed to reproduce the issue.
+      placeholder: |
+        1. Create a table with cashash_create(...)
+        2. Insert key/value with cashash_insert(...)
+        3. Call cashash_find(...)
+        4. Observe the result
+    validations:
+      required: true
+
+  - type: textarea
+    id: minimal-code
+    attributes:
+      label: Minimal code example
+      description: If possible, provide a small C example that reproduces the bug.
+      render: c
+      placeholder: |
+        #include "cashash.h"
+
+        int main(void) {
+            // minimal reproduction
+        }
+
+  - type: input
+    id: version
+    attributes:
+      label: cashash.c version
+      description: Which version, tag, or commit are you using?
+      placeholder: "v0.1.0 or commit hash"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Architecture
+      options:
+        - x86_64
+        - arm64
+        - arm32
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: compiler
+    attributes:
+      label: Compiler
+      description: Which compiler and version are you using?
+      placeholder: "gcc 14, clang 18, MSVC 19.xx"
+    validations:
+      required: false
+
+  - type: textarea
+    id: build-info
+    attributes:
+      label: Build details
+      description: Include CMake options, build command, or CI logs if relevant.
+      placeholder: |
+        cmake -S . -B build -DCAS_BUILD_TESTS=ON
+        cmake --build build
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or sanitizer output
+      description: Paste compiler errors, test failures, AddressSanitizer output, Valgrind output, or crash logs.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked that this issue is not already reported.
+          required: true
+        - label: I included a minimal reproduction or enough detail to reproduce the issue.
+          required: true
+        - label: I understand that this is a personal MIT-licensed project provided as-is.
+          required: true
