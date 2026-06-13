@@ -23,12 +23,20 @@ target_include_directories(cashash.c
         $<INSTALL_INTERFACE:include>
 )
 
-target_compile_options(cashash.c
-    PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-)
+if(MSVC)
+    target_compile_options(cashash.c
+        PRIVATE
+            /W4
+            /permissive-
+    )
+else()
+    target_compile_options(cashash.c
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+    )
+endif()
 
 if(CAS_BUILD_EXAMPLE)
     set(examples
