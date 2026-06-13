@@ -56,12 +56,6 @@ jobs:
         run: |
           brew install cmake pkg-config check
 
-      - name: Install dependencies on Windows
-        if: matrix.platform == 'windows'
-        shell: pwsh
-        run: |
-          vcpkg install check:${{ matrix.vcpkg_triplet }}
-
       - name: Configure on Linux/macOS
         if: matrix.platform != 'windows'
         run: |
@@ -79,6 +73,7 @@ jobs:
             -A ${{ matrix.msvc_arch }} `
             -DCAS_BUILD_TESTS=ON `
             -DCAS_BUILD_DOCS=OFF `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
 
       - name: Build on Linux/macOS
