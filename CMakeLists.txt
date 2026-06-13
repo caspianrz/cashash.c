@@ -59,9 +59,6 @@ endif()
 if(CAS_BUILD_TESTS)
     enable_testing()
 
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(CHECK REQUIRED IMPORTED_TARGET check)
-
     add_executable(test_cashash
         tests/test_cashash.c
     )
