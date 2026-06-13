@@ -114,4 +114,6 @@ size_t cashash_size(const cashash_t *table);
  * @}
  */
 
+size_t cashash_bucket_count(const cashash_t *table);
+
 #endif
