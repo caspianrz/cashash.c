@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  native:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-x86_64
+            os: ubuntu-24.04
+            platform: linux
+
+          - name: ubuntu-arm64
+            os: ubuntu-24.04-arm
+            platform: linux
+
+          - name: macos-x86_64
+            os: macos-15-intel
+            platform: macos
+
+          - name: macos-arm64
+            os: macos-15
+            platform: macos
+
+          - name: windows-x86_64
+            os: windows-2022
+            platform: windows
+            msvc_arch: x64
+            vcpkg_triplet: x64-windows
+
+          - name: windows-arm64
+            os: windows-11-arm
+            platform: windows
+            msvc_arch: ARM64
+            vcpkg_triplet: arm64-windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies on Ubuntu
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config check
+
+      - name: Install dependencies on macOS
+        if: matrix.platform == 'macos'
+        run: |
+          brew install cmake pkg-config check
+
+      - name: Install dependencies on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          vcpkg install check:${{ matrix.vcpkg_triplet }}
+
+      - name: Configure on Linux/macOS
+        if: matrix.platform != 'windows'
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCAS_BUILD_TESTS=ON \
+            -DCAS_BUILD_DOCS=OFF
+
+      - name: Configure on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          cmake -S . -B build `
+            -G "Visual Studio 17 2022" `
+            -A ${{ matrix.msvc_arch }} `
+            -DCAS_BUILD_TESTS=ON `
+            -DCAS_BUILD_DOCS=OFF `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+      - name: Build on Linux/macOS
+        if: matrix.platform != 'windows'
+        run: cmake --build build
+
+      - name: Build on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: cmake --build build --config Debug
+
+      - name: Test on Linux/macOS
+        if: matrix.platform != 'windows'
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Test on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ctest --test-dir build -C Debug --output-on-failure
