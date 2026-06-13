@@ -182,5 +182,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
-          gh release edit "$TAG" --draft=false
+          gh release edit "$TAG" \
+            --repo "$REPO" \
+            --draft=false
