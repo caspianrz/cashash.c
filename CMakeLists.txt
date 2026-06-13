@@ -13,14 +13,16 @@ option(CAS_BUILD_TESTS "Build cashash tests" ON)
 option(CAS_BUILD_EXAMPLE "Build cashash examples" ON)
 option(CAS_BUILD_DOCS "Build documentation with Doxygen" ON)
 
-add_library(cashash.c)
+include(GNUInstallDirs)
+
+add_library(cashash.c STATIC)
 add_library(cashash::cashash ALIAS cashash.c)
 
 target_sources(cashash.c PRIVATE "src/cashash.c")
 target_include_directories(cashash.c
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 if(MSVC)
@@ -37,6 +39,14 @@ else()
             -Wpedantic
     )
 endif()
+
+install(TARGETS cashash.c
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
 
 if(CAS_BUILD_EXAMPLE)
     set(examples

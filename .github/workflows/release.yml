@@ -1,0 +1,183 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  create-release:
+    name: create-draft-release
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Create draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+          else
+            gh release create "$TAG" \
+              --draft \
+              --verify-tag \
+              --generate-notes \
+              --title "$TAG"
+          fi
+
+  build:
+    name: ${{ matrix.name }}
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            os: ubuntu-24.04
+            platform: linux
+            asset: linux-x86_64
+
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            platform: linux
+            asset: linux-arm64
+
+          - name: macos-x86_64
+            os: macos-15-intel
+            platform: macos
+            asset: macos-x86_64
+
+          - name: macos-arm64
+            os: macos-15
+            platform: macos
+            asset: macos-arm64
+
+          - name: windows-x86_64
+            os: windows-2022
+            platform: windows
+            asset: windows-x86_64
+            msvc_arch: x64
+            vcpkg_triplet: x64-windows
+
+          - name: windows-arm64
+            os: windows-11-arm
+            platform: windows
+            asset: windows-arm64
+            msvc_arch: ARM64
+            vcpkg_triplet: arm64-windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install dependencies on Linux
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config check
+
+      - name: Install dependencies on macOS
+        if: matrix.platform == 'macos'
+        run: |
+          brew install cmake pkg-config check
+
+      - name: Configure on Linux/macOS
+        if: matrix.platform != 'windows'
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCAS_BUILD_TESTS=ON \
+            -DCAS_BUILD_DOCS=OFF
+
+      - name: Configure on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          cmake -S . -B build `
+            -G "Visual Studio 17 2022" `
+            -A ${{ matrix.msvc_arch }} `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DCAS_BUILD_TESTS=ON `
+            -DCAS_BUILD_DOCS=OFF `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+      - name: Build on Linux/macOS
+        if: matrix.platform != 'windows'
+        run: cmake --build build
+
+      - name: Build on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: cmake --build build --config Release
+
+      - name: Test on Linux/macOS
+        if: matrix.platform != 'windows'
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Test on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package and upload on Linux/macOS
+        if: matrix.platform != 'windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          PKG="cashash-${TAG}-${ASSET}"
+
+          cmake --install build --prefix "dist/${PKG}"
+
+          tar -czf "${PKG}.tar.gz" -C dist "${PKG}"
+
+          gh release upload "$TAG" "${PKG}.tar.gz" --clobber
+
+      - name: Package and upload on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          $pkg = "cashash-$env:TAG-$env:ASSET"
+
+          cmake --install build --config Release --prefix "dist/$pkg"
+
+          Compress-Archive -Path "dist/$pkg/*" -DestinationPath "$pkg.zip" -Force
+
+          gh release upload "$env:TAG" "$pkg.zip" --clobber
+
+  publish-release:
+    name: publish-release
+    needs: build
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release edit "$TAG" --draft=false
