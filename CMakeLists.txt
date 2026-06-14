@@ -115,33 +115,43 @@ endif()
 if(CAS_BUILD_TESTS)
     enable_testing()
 
-    add_executable(test_cashash
-        tests/test_cashash.c
-    )
+	set(tests
+		"test_cashash:tests/test_cashash.c"
+		"test_cashash_hash:tests/test_cashash_hash.c"
+	)
 
-    target_link_libraries(test_cashash
-        PRIVATE
-            cashash::cashash
-    )
+	foreach(test ${tests})
+		string(REPLACE ":" ";" pair ${test})
 
-	if(WIN32)
-        find_package(check CONFIG REQUIRED)
+		list(GET pair 0 name)
+		list(GET pair 1 source)
 
-        target_link_libraries(test_cashash
-            PRIVATE
-                $<IF:$<TARGET_EXISTS:Check::check>,Check::check,Check::checkShared>
-        )
-    else()
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(CHECK REQUIRED IMPORTED_TARGET check)
+		add_executable(${name} ${source})
 
-        target_link_libraries(test_cashash
-            PRIVATE
-                PkgConfig::CHECK
-        )
-    endif()
+		target_link_libraries(${name}
+			PRIVATE
+				cashash::cashash
+		)
 
-    add_test(NAME cashash_tests COMMAND test_cashash)
+		if(WIN32)
+			find_package(check CONFIG REQUIRED)
+
+			target_link_libraries(${name}
+				PRIVATE
+					$<IF:$<TARGET_EXISTS:Check::check>,Check::check,Check::checkShared>
+			)
+		else()
+			find_package(PkgConfig REQUIRED)
+			pkg_check_modules(CHECK REQUIRED IMPORTED_TARGET check)
+
+			target_link_libraries(${name}
+				PRIVATE
+					PkgConfig::CHECK
+			)
+		endif()
+
+		add_test(NAME ${name} COMMAND ${name})
+	endforeach()
 endif()
 
 if(CAS_BUILD_DOCS)

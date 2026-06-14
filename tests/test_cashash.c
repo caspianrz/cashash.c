@@ -1,7 +1,16 @@
 #include <cashash.c/cashash.h>
 
 #include <check.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+
+typedef struct cashash_test_struct_key {
+  uint32_t id;
+  uint16_t kind;
+  uint8_t flags;
+  char tag[8];
+} cashash_test_struct_key_t;
 
 #define CKEY(key) (key), (sizeof(key) - 1)
 
@@ -566,6 +575,300 @@ END_TEST
 START_TEST(test_clear_null_table) { cashash_clear(NULL); }
 END_TEST
 
+START_TEST(test_integer_keys_insert_and_find) {
+  cashash_t *map = cashash_create(32);
+
+  int key_a = 10;
+  int key_b = 20;
+  int key_c = -30;
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, (const char *)&key_a, sizeof(key_a), "ten"));
+  ck_assert(cashash_insert(map, (const char *)&key_b, sizeof(key_b), "twenty"));
+  ck_assert(
+      cashash_insert(map, (const char *)&key_c, sizeof(key_c), "minus-thirty"));
+
+  ck_assert_uint_eq(cashash_size(map), 3);
+
+  ck_assert_str_eq(
+      (const char *)cashash_find(map, (const char *)&key_a, sizeof(key_a)),
+      "ten");
+  ck_assert_str_eq(
+      (const char *)cashash_find(map, (const char *)&key_b, sizeof(key_b)),
+      "twenty");
+  ck_assert_str_eq(
+      (const char *)cashash_find(map, (const char *)&key_c, sizeof(key_c)),
+      "minus-thirty");
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_integer_key_update) {
+  cashash_t *map = cashash_create(32);
+
+  int key = 42;
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, (const char *)&key, sizeof(key), "old"));
+  ck_assert(cashash_insert(map, (const char *)&key, sizeof(key), "new"));
+
+  ck_assert_uint_eq(cashash_size(map), 1);
+  ck_assert_str_eq(
+      (const char *)cashash_find(map, (const char *)&key, sizeof(key)), "new");
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_integer_key_remove) {
+  cashash_t *map = cashash_create(32);
+
+  int key_a = 1;
+  int key_b = 2;
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, (const char *)&key_a, sizeof(key_a), "one"));
+  ck_assert(cashash_insert(map, (const char *)&key_b, sizeof(key_b), "two"));
+
+  ck_assert(cashash_remove(map, &key_a, sizeof(key_a)));
+
+  ck_assert_uint_eq(cashash_size(map), 1);
+  ck_assert_ptr_null(cashash_find(map, (const char *)&key_a, sizeof(key_a)));
+  ck_assert_str_eq(
+      (const char *)cashash_find(map, (const char *)&key_b, sizeof(key_b)),
+      "two");
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_long_key_insert_and_find) {
+  cashash_t *map = cashash_create(32);
+
+  char long_key[4096];
+  size_t i;
+
+  ck_assert_ptr_nonnull(map);
+
+  for (i = 0; i < sizeof(long_key); i++) {
+    long_key[i] = (char)(i % 251);
+  }
+
+  ck_assert(cashash_insert(map, long_key, sizeof(long_key), "long-value"));
+
+  ck_assert_uint_eq(cashash_size(map), 1);
+  ck_assert_str_eq((const char *)cashash_find(map, long_key, sizeof(long_key)),
+                   "long-value");
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_long_keys_with_same_prefix_are_distinct) {
+  cashash_t *map = cashash_create(32);
+
+  char key_a[2048];
+  char key_b[2048];
+  size_t i;
+
+  ck_assert_ptr_nonnull(map);
+
+  for (i = 0; i < sizeof(key_a); i++) {
+    key_a[i] = (char)(i % 127);
+    key_b[i] = (char)(i % 127);
+  }
+
+  key_a[sizeof(key_a) - 1] = 'A';
+  key_b[sizeof(key_b) - 1] = 'B';
+
+  ck_assert(cashash_insert(map, key_a, sizeof(key_a), "value-a"));
+  ck_assert(cashash_insert(map, key_b, sizeof(key_b), "value-b"));
+
+  ck_assert_uint_eq(cashash_size(map), 2);
+
+  ck_assert_str_eq((const char *)cashash_find(map, key_a, sizeof(key_a)),
+                   "value-a");
+  ck_assert_str_eq((const char *)cashash_find(map, key_b, sizeof(key_b)),
+                   "value-b");
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_long_key_survives_dynamic_growth) {
+  cashash_t *map = cashash_create(1);
+
+  char long_key[4096];
+  int keys[32];
+  size_t i;
+
+  ck_assert_ptr_nonnull(map);
+
+  for (i = 0; i < sizeof(long_key); i++) {
+    long_key[i] = (char)((i * 31) % 255);
+  }
+
+  ck_assert(cashash_insert(map, long_key, sizeof(long_key), "long-value"));
+
+  for (i = 0; i < 32; i++) {
+    keys[i] = (int)i;
+    ck_assert(cashash_insert(map, (const char *)&keys[i], sizeof(keys[i]),
+                             "int-value"));
+  }
+
+  ck_assert_uint_gt(cashash_bucket_count(map), 1);
+  ck_assert_str_eq((const char *)cashash_find(map, long_key, sizeof(long_key)),
+                   "long-value");
+
+  for (i = 0; i < 32; i++) {
+    ck_assert_str_eq((const char *)cashash_find(map, (const char *)&keys[i],
+                                                sizeof(keys[i])),
+                     "int-value");
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_struct_keys_insert_and_find) {
+  cashash_t *map = cashash_create(32);
+
+  cashash_test_struct_key_t key_a;
+  cashash_test_struct_key_t key_b;
+
+  ck_assert_ptr_nonnull(map);
+
+  memset(&key_a, 0, sizeof(key_a));
+  memset(&key_b, 0, sizeof(key_b));
+
+  key_a.id = 100;
+  key_a.kind = 1;
+  key_a.flags = 7;
+  memcpy(key_a.tag, "alpha", 5);
+
+  key_b.id = 200;
+  key_b.kind = 2;
+  key_b.flags = 9;
+  memcpy(key_b.tag, "beta", 4);
+
+  ck_assert(
+      cashash_insert(map, (const char *)&key_a, sizeof(key_a), "struct-a"));
+  ck_assert(
+      cashash_insert(map, (const char *)&key_b, sizeof(key_b), "struct-b"));
+
+  ck_assert_uint_eq(cashash_size(map), 2);
+
+  ck_assert_str_eq(
+      (const char *)cashash_find(map, (const char *)&key_a, sizeof(key_a)),
+      "struct-a");
+  ck_assert_str_eq(
+      (const char *)cashash_find(map, (const char *)&key_b, sizeof(key_b)),
+      "struct-b");
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_struct_key_update) {
+  cashash_t *map = cashash_create(32);
+
+  cashash_test_struct_key_t key;
+
+  ck_assert_ptr_nonnull(map);
+
+  memset(&key, 0, sizeof(key));
+
+  key.id = 777;
+  key.kind = 3;
+  key.flags = 1;
+  memcpy(key.tag, "user", 4);
+
+  ck_assert(cashash_insert(map, (const char *)&key, sizeof(key), "old"));
+  ck_assert(cashash_insert(map, (const char *)&key, sizeof(key), "new"));
+
+  ck_assert_uint_eq(cashash_size(map), 1);
+  ck_assert_str_eq(
+      (const char *)cashash_find(map, (const char *)&key, sizeof(key)), "new");
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_struct_key_remove) {
+  cashash_t *map = cashash_create(32);
+
+  cashash_test_struct_key_t key_a;
+  cashash_test_struct_key_t key_b;
+
+  ck_assert_ptr_nonnull(map);
+
+  memset(&key_a, 0, sizeof(key_a));
+  memset(&key_b, 0, sizeof(key_b));
+
+  key_a.id = 1;
+  key_a.kind = 10;
+  key_a.flags = 2;
+  memcpy(key_a.tag, "left", 4);
+
+  key_b.id = 2;
+  key_b.kind = 20;
+  key_b.flags = 4;
+  memcpy(key_b.tag, "right", 5);
+
+  ck_assert(
+      cashash_insert(map, (const char *)&key_a, sizeof(key_a), "left-value"));
+  ck_assert(
+      cashash_insert(map, (const char *)&key_b, sizeof(key_b), "right-value"));
+
+  ck_assert(cashash_remove(map, &key_a, sizeof(key_a)));
+
+  ck_assert_uint_eq(cashash_size(map), 1);
+  ck_assert_ptr_null(cashash_find(map, (const char *)&key_a, sizeof(key_a)));
+  ck_assert_str_eq(
+      (const char *)cashash_find(map, (const char *)&key_b, sizeof(key_b)),
+      "right-value");
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_struct_keys_survive_dynamic_growth) {
+  cashash_t *map = cashash_create(1);
+
+  cashash_test_struct_key_t keys[32];
+  size_t i;
+
+  ck_assert_ptr_nonnull(map);
+
+  for (i = 0; i < 32; i++) {
+    memset(&keys[i], 0, sizeof(keys[i]));
+
+    keys[i].id = (uint32_t)i;
+    keys[i].kind = (uint16_t)(i % 5);
+    keys[i].flags = (uint8_t)(i % 3);
+    memcpy(keys[i].tag, "key", 3);
+
+    ck_assert(cashash_insert(map, (const char *)&keys[i], sizeof(keys[i]),
+                             "struct-value"));
+  }
+
+  ck_assert_uint_eq(cashash_size(map), 32);
+  ck_assert_uint_gt(cashash_bucket_count(map), 1);
+
+  for (i = 0; i < 32; i++) {
+    ck_assert_str_eq((const char *)cashash_find(map, (const char *)&keys[i],
+                                                sizeof(keys[i])),
+                     "struct-value");
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
 static Suite *cashash_suite(void) {
   Suite *suite = suite_create("cashash");
 
@@ -602,6 +905,19 @@ static Suite *cashash_suite(void) {
   tcase_add_test(core, test_clear_populated_table);
   tcase_add_test(core, test_insert_after_clear);
   tcase_add_test(core, test_clear_null_table);
+
+  tcase_add_test(core, test_integer_keys_insert_and_find);
+  tcase_add_test(core, test_integer_key_update);
+  tcase_add_test(core, test_integer_key_remove);
+
+  tcase_add_test(core, test_long_key_insert_and_find);
+  tcase_add_test(core, test_long_keys_with_same_prefix_are_distinct);
+  tcase_add_test(core, test_long_key_survives_dynamic_growth);
+
+  tcase_add_test(core, test_struct_keys_insert_and_find);
+  tcase_add_test(core, test_struct_key_update);
+  tcase_add_test(core, test_struct_key_remove);
+  tcase_add_test(core, test_struct_keys_survive_dynamic_growth);
 
   suite_add_tcase(suite, core);
 

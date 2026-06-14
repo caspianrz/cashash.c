@@ -32,7 +32,11 @@ size_t cashash_hash_fnv1a_bytes(const void *data, size_t len, ...) {
 }
 
 bool cashash_equal_fnv1a_bytes(const void *a, const void *b, const size_t len) {
-  return strncmp((const char *)a, (const char *)b, len) == 0;
+  if (a == NULL || b == NULL) {
+    return false;
+  }
+
+  return memcmp(a, b, len) == 0;
 }
 
 void *cashash_copy_fnv1a_bytes(const void *key, const size_t len) {
