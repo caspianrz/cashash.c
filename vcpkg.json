@@ -1,7 +1,8 @@
 {
   "name": "cashash",
-  "version-string": "0.3.0",
+  "version-string": "0.4.0",
   "dependencies": [
-    "check"
+    "check",
+	"xxhash"
   ]
 }

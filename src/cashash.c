@@ -226,12 +226,13 @@ bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
     node = node->next;
   }
 
-  if ((table->size + 1) * 4 > table->bucket_count * 3) {
+  if ((table->size + 1) * CASHASH_MAX_LOAD_DENOMINATOR >
+      table->bucket_count * CASHASH_MAX_LOAD_NUMERATOR) {
     size_t new_bucket_count;
     cashash_node_t **new_buckets;
     size_t i;
 
-    new_bucket_count = table->bucket_count * 2;
+    new_bucket_count = table->bucket_count * CASHASH_GROWTH_FACTOR;
     if (new_bucket_count <= table->bucket_count) {
       return false;
     }

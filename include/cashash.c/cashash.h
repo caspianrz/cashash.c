@@ -9,27 +9,34 @@
 
 /**
  * @file cashash.c/cashash.h
- * @brief Public API for the cashash string-key hash table.
+ * @brief Public API for the cashash generic-key hash table.
  *
  * cashash is a small C hash table library using:
  *
- * - string keys
+ * - generic byte keys
  * - generic `void *` values
  * - separate chaining
- * - FNV-1a hashing
- * - automatic dynamic growth
+ * - FNV-1a hashing by default
+ * - optional xxHash support
+ * - automatic dynamic bucket growth
  *
- * The table stores generic `void *` values. It owns and frees copied keys,
- * but it does not own or free inserted values.
+ * Keys are passed as a pointer plus an explicit length. This makes the table
+ * usable with strings, binary buffers, integers, structs, and other fixed-size
+ * key types.
  *
- * The table starts with the bucket count passed to cashash_create(). As new
- * key-value pairs are inserted, the table may allocate a larger bucket array
- * and rehash existing entries to keep collision chains shorter.
+ * The table copies keys internally. The caller may free or modify the original
+ * key after insertion.
+ *
+ * The table stores generic `void *` values as-is. It does not copy, destroy,
+ * or otherwise manage inserted values.
+ *
+ * As new key-value pairs are inserted, the table may allocate a larger bucket
+ * array and rehash existing entries to keep collision chains shorter.
  */
 
 /**
  * @defgroup cashash Cashash
- * @brief String-key hash table API.
+ * @brief Generic byte-key hash table API.
  *
  * @{
  */
@@ -38,61 +45,223 @@
  * @brief Opaque hash table type.
  *
  * The internal representation is hidden from users of the library.
- * Create a table with cashash_create() and release it with cashash_destroy().
+ *
+ * Create a table with cashash_create(), cashash_create_with_strategy(), or
+ * cashash_create_with_config().
+ *
+ * Release a table with cashash_destroy().
  */
 typedef struct cashash_s cashash_t;
 
+/**
+ * @brief Built-in hash strategy selector.
+ *
+ * This enum is used by cashash_create_with_strategy() and stored in
+ * cashash_config_t so internal operations know which hash strategy is active.
+ */
 typedef enum {
+  /**
+   * @brief No built-in strategy.
+   *
+   * Intended for fully custom configurations passed to
+   * cashash_create_with_config().
+   */
   CASHASH_HASH_STRATEGY_NONE,
+
+  /**
+   * @brief Use the built-in FNV-1a byte hash.
+   */
   CASHASH_HASH_STRATEGY_FNV1A,
+
 #ifdef CASHASH_USE_XXHASH
+  /**
+   * @brief Use the built-in XXH3 byte hash.
+   *
+   * Available only when CASHASH_USE_XXHASH is enabled.
+   */
   CASHASH_HASH_STRATEGY_XXH3,
+
+  /**
+   * @brief Use the built-in XXH64 byte hash.
+   *
+   * Available only when CASHASH_USE_XXHASH is enabled.
+   */
   CASHASH_HASH_STRATEGY_XXH64,
 #endif
 } cashash_hash_strategy_t;
 
+/**
+ * @brief Hash function callback type.
+ *
+ * Computes a hash value for `key_len` bytes starting at `key`.
+ *
+ * The variadic arguments are reserved for strategy-specific options, such as
+ * an xxHash seed.
+ *
+ * @param key Pointer to key bytes.
+ * @param len Number of bytes in the key.
+ *
+ * @return Hash value for the provided key bytes.
+ */
 typedef size_t (*cashash_hash_fn)(const void *key, const size_t len, ...);
+
+/**
+ * @brief Key equality callback type.
+ *
+ * Compares exactly `len` bytes from `a` and `b`.
+ *
+ * Implementations should be binary-safe and should not depend on
+ * null-terminated strings.
+ *
+ * @param a First key pointer.
+ * @param b Second key pointer.
+ * @param len Number of bytes to compare.
+ *
+ * @return true if the keys are equal.
+ * @return false otherwise.
+ */
 typedef bool (*cashash_equal_fn)(const void *a, const void *b, size_t len);
+
+/**
+ * @brief Key copy callback type.
+ *
+ * Creates an owned copy of `len` bytes from `key`.
+ *
+ * The returned pointer is stored internally by the hash table and later passed
+ * to the configured cashash_key_destroy_fn.
+ *
+ * @param key Pointer to key bytes to copy.
+ * @param len Number of bytes to copy.
+ *
+ * @return Pointer to copied key memory on success.
+ * @return NULL on allocation failure.
+ */
 typedef void *(*cashash_key_copy_fn)(const void *key, size_t len);
+
+/**
+ * @brief Key destroy callback type.
+ *
+ * Destroys a key previously returned by cashash_key_copy_fn.
+ *
+ * @param key Copied key pointer to destroy.
+ */
 typedef void (*cashash_key_destroy_fn)(const void *key);
 
+/**
+ * @brief Hash table configuration.
+ *
+ * This structure allows callers to provide custom hashing, equality, key copy,
+ * and key destroy behavior.
+ *
+ * For the default byte-key behavior, use cashash_create().
+ */
 typedef struct {
+  /**
+   * @brief Hash strategy identifier.
+   *
+   * Use CASHASH_HASH_STRATEGY_NONE for fully custom callbacks.
+   */
   cashash_hash_strategy_t strategy;
+
+  /**
+   * @brief Function used to hash keys.
+   */
   cashash_hash_fn hash;
+
+  /**
+   * @brief Function used to compare keys.
+   */
   cashash_equal_fn equal;
+
+  /**
+   * @brief Function used to copy keys before storing them.
+   */
   cashash_key_copy_fn copy_key;
+
+  /**
+   * @brief Function used to destroy copied keys.
+   */
   cashash_key_destroy_fn destroy_key;
 } cashash_config_t;
 
-typedef union {
+/**
+ * @brief Strategy-specific hash options.
+ *
+ * This structure stores optional settings for built-in hash strategies.
+ *
+ * `used` indicates whether strategy-specific options should be used.
+ */
+typedef struct {
+  /**
+   * @brief Whether strategy-specific options are enabled.
+   */
   bool used;
+
 #ifdef CASHASH_USE_XXHASH
+  /**
+   * @brief Options for the XXH64 strategy.
+   */
   struct {
+    /**
+     * @brief Seed passed to XXH64.
+     */
     uint64_t seed;
   } xxh64;
 #endif
 } cashash_strategy_option_t;
 
 /**
- * @brief Create a new hash table.
+ * @brief Create a new hash table using the default strategy.
  *
- * Creates a hash table with a fixed number of buckets.
- * Since V1 does not support resizing, the bucket count affects performance.
+ * Creates a hash table using the default FNV-1a byte-key configuration.
  *
- * @param bucket_count Number of buckets to allocate.
+ * @param bucket_count Initial number of buckets to allocate.
  *
  * @return A pointer to a new hash table on success.
  * @return NULL if allocation fails or if `bucket_count` is 0.
  *
- * @note A larger bucket count usually reduces collisions but uses more memory.
- * @note A bucket count of 1 is valid, but all keys will collide into one chain.
+ * @note The table may grow dynamically as entries are inserted.
+ * @note A larger initial bucket count usually reduces early collisions but
+ * uses more memory.
+ * @note A bucket count of 1 is valid, but all initial keys collide into one
+ * chain until growth occurs.
  */
 cashash_t *cashash_create(size_t bucket_count);
 
+/**
+ * @brief Create a new hash table using a built-in hash strategy.
+ *
+ * Creates a hash table using one of the built-in hash strategies.
+ *
+ * @param bucket_count Initial number of buckets to allocate.
+ * @param strategy Built-in hash strategy to use.
+ * @param option Strategy-specific options.
+ *
+ * @return A pointer to a new hash table on success.
+ * @return NULL if allocation fails, if `bucket_count` is 0, or if `strategy`
+ * is invalid.
+ */
 cashash_t *cashash_create_with_strategy(size_t bucket_count,
                                         cashash_hash_strategy_t strategy,
                                         cashash_strategy_option_t option);
 
+/**
+ * @brief Create a new hash table using a custom configuration.
+ *
+ * Creates a hash table with caller-provided hash, equality, key copy, and key
+ * destroy functions.
+ *
+ * @param bucket_count Initial number of buckets to allocate.
+ * @param config Hash table configuration.
+ * @param option Strategy-specific options.
+ *
+ * @return A pointer to a new hash table on success.
+ * @return NULL if allocation fails, if `bucket_count` is 0, or if any required
+ * callback in `config` is NULL.
+ *
+ * @warning Custom callbacks must be compatible with each other. The hash and
+ * equality functions should operate on the same key representation.
+ */
 cashash_t *cashash_create_with_config(size_t bucket_count,
                                       cashash_config_t config,
                                       cashash_strategy_option_t option);
@@ -115,17 +284,18 @@ void cashash_destroy(cashash_t *table);
  * Inserts `key` with the given `value`. If the key already exists, its value
  * is replaced and the table size does not increase.
  *
- * The key string is copied internally, so the caller may free or modify the
- * original key after insertion.
+ * The key is copied internally using the configured key copy function.
  *
  * @param table Hash table.
- * @param key Null-terminated string key.
+ * @param key Pointer to key bytes.
+ * @param key_len Number of bytes in `key`.
  * @param value Value pointer to associate with the key.
  *
  * @return true if insertion or update succeeds.
  * @return false if `table` is NULL, `key` is NULL, or allocation fails.
  *
  * @note The table stores the value pointer as-is. It does not copy the value.
+ * @note Keys may contain embedded `'\0'` bytes.
  */
 bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
                     void *value);
@@ -133,10 +303,11 @@ bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
 /**
  * @brief Find a value by key.
  *
- * Searches the table for `key`.
+ * Searches the table for a key matching exactly `key_len` bytes from `key`.
  *
  * @param table Hash table.
- * @param key Null-terminated string key.
+ * @param key Pointer to key bytes.
+ * @param key_len Number of bytes in `key`.
  *
  * @return The value associated with `key`.
  * @return NULL if the key is not found, or if `table` or `key` is NULL.
@@ -178,7 +349,8 @@ size_t cashash_bucket_count(const cashash_t *table);
  * but it does not free the stored value pointer.
  *
  * @param table Hash table.
- * @param key Null-terminated string key to remove.
+ * @param key Pointer to key bytes to remove.
+ * @param key_len Number of bytes in `key`.
  *
  * @return true if the key was found and removed.
  * @return false if the key was not found, or if `table` or `key` is NULL.
