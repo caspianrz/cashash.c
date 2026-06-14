@@ -12,12 +12,13 @@ That said, security reports are welcome. If a valid security issue is reported, 
 
 | Version | Supported | Notes |
 | ------- | --------- | ----- |
-| 0.3.0   | :white_check_mark: | Added remove and clear API. |
-| 0.2.0   | :white_check_mark: | Added dynamic bucket count. |
-| 0.1.0   | :white_check_mark: | Initial version. Basic fixed-size string-key hash map implementation. |
+| 0.4.0   | :white_check_mark: | Added generic key support. |
+| 0.3.0   | :x: | Added remove and clear API. |
+| 0.2.0   | :x: | Added dynamic bucket count. |
+| 0.1.0   | :x: | Initial version. Basic fixed-size string-key hash map implementation. |
 | < 0.1.0 | :x: | Not supported. |
 
-Version `0.1.0` exists mainly to provide a simple working hash map with string keys, separate chaining, FNV-1a hashing, and no resizing.
+After version `0.4.0` because of change in key and functions the previous versions are not supported.
 
 ## Reporting a Vulnerability
 

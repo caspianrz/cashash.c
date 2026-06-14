@@ -74,6 +74,7 @@ jobs:
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCAS_BUILD_TESTS=ON \
+            -DCAS_USE_XXHASH=ON \
             -DCAS_BUILD_DOCS=OFF
 
       - name: Configure on Windows
@@ -84,6 +85,7 @@ jobs:
             -G "Visual Studio 17 2022" `
             -A ${{ matrix.msvc_arch }} `
             -DCAS_BUILD_TESTS=ON `
+            -DCAS_USE_XXHASH=ON `
             -DCAS_BUILD_DOCS=OFF `
             -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
