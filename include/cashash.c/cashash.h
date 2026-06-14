@@ -127,6 +127,10 @@ size_t cashash_size(const cashash_t *table);
  */
 size_t cashash_bucket_count(const cashash_t *table);
 
+bool cashash_remove(cashash_t *table, const char *key);
+
+void cashash_clear(cashash_t *table);
+
 /**
  * @}
  */
