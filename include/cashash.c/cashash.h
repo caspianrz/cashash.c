@@ -128,6 +128,44 @@ size_t cashash_size(const cashash_t *table);
 size_t cashash_bucket_count(const cashash_t *table);
 
 /**
+ * @brief Remove a key-value pair from the hash table.
+ *
+ * Searches for `key` and removes the matching entry if it exists.
+ *
+ * This function frees the internally copied key and the internal table node,
+ * but it does not free the stored value pointer.
+ *
+ * @param table Hash table.
+ * @param key Null-terminated string key to remove.
+ *
+ * @return true if the key was found and removed.
+ * @return false if the key was not found, or if `table` or `key` is NULL.
+ *
+ * @note The table does not own inserted values, so the caller is responsible
+ * for freeing or otherwise managing the value if needed.
+ * @note Removing a key decreases cashash_size() by 1.
+ */
+bool cashash_remove(cashash_t *table, const char *key);
+
+/**
+ * @brief Remove all entries from the hash table.
+ *
+ * Clears every key-value pair from the table while keeping the table itself
+ * allocated and reusable.
+ *
+ * This function frees all internally copied keys and internal table nodes,
+ * but it does not free any stored value pointers.
+ *
+ * @param table Hash table to clear. Passing NULL is allowed.
+ *
+ * @note The bucket array remains allocated.
+ * @note The current bucket count is unchanged.
+ * @note After clearing, cashash_size() returns 0.
+ * @note New entries may be inserted into the table after calling this function.
+ */
+void cashash_clear(cashash_t *table);
+
+/**
  * @}
  */
 

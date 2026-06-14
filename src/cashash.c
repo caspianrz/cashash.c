@@ -139,7 +139,40 @@ cashash_t *cashash_create(size_t bucket_count) {
   return table;
 }
 
-void cashash_destroy(cashash_t *table) {
+bool cashash_remove(cashash_t *table, const char *key) {
+  if (table == NULL || key == NULL) {
+    return false;
+  }
+
+  size_t index = cashash_bucket_index(key, table->bucket_count);
+
+  cashash_node_t *node = table->buckets[index];
+  cashash_node_t *previous = NULL;
+
+  while (node != NULL) {
+    if (strcmp(node->key, key) == 0) {
+      if (previous == NULL) {
+        table->buckets[index] = node->next;
+      } else {
+        previous->next = node->next;
+      }
+
+      free(node->key);
+      free(node);
+
+      table->size--;
+
+      return true;
+    }
+
+    previous = node;
+    node = node->next;
+  }
+
+  return false;
+}
+
+void cashash_clear(cashash_t *table) {
   if (table == NULL) {
     return;
   }
@@ -155,7 +188,19 @@ void cashash_destroy(cashash_t *table) {
 
       node = next;
     }
+
+    table->buckets[i] = NULL;
   }
+
+  table->size = 0;
+}
+
+void cashash_destroy(cashash_t *table) {
+  if (table == NULL) {
+    return;
+  }
+
+  cashash_clear(table);
 
   free(table->buckets);
   free(table);
