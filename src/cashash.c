@@ -145,8 +145,9 @@ bool cashash_remove(cashash_t *table, const char *key) {
   }
 
   size_t index = cashash_bucket_index(key, table->bucket_count);
+
+  cashash_node_t *node = table->buckets[index];
   cashash_node_t *previous = NULL;
-  cashash_node_t *node = NULL;
 
   while (node != NULL) {
     if (strcmp(node->key, key) == 0) {

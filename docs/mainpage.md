@@ -8,8 +8,7 @@
 - Generic `void *` values
 - Separate chaining
 - FNV-1a hash
-- Fixed bucket count
-- No resizing in V1
+- Dynamic bucket count
 
 ## Example
 
