@@ -5,6 +5,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /**
  * @file cashash.c/cashash.h
@@ -41,6 +42,37 @@
  */
 typedef struct cashash_s cashash_t;
 
+typedef enum {
+  CASHASH_HASH_STRATEGY_NONE,
+  CASHASH_HASH_STRATEGY_FNV1A,
+#ifdef CASHASH_USE_XXHASH
+  CASHASH_HASH_STRATEGY_XXH3,
+  CASHASH_HASH_STRATEGY_XXH64,
+#endif
+} cashash_hash_strategy_t;
+
+typedef size_t (*cashash_hash_fn)(const void *key, const size_t len, ...);
+typedef bool (*cashash_equal_fn)(const void *a, const void *b, size_t len);
+typedef void *(*cashash_key_copy_fn)(const void *key, size_t len);
+typedef void (*cashash_key_destroy_fn)(const void *key);
+
+typedef struct {
+  cashash_hash_strategy_t strategy;
+  cashash_hash_fn hash;
+  cashash_equal_fn equal;
+  cashash_key_copy_fn copy_key;
+  cashash_key_destroy_fn destroy_key;
+} cashash_config_t;
+
+typedef union {
+  bool used;
+#ifdef CASHASH_USE_XXHASH
+  struct {
+    uint64_t seed;
+  } xxh64;
+#endif
+} cashash_strategy_option_t;
+
 /**
  * @brief Create a new hash table.
  *
@@ -56,6 +88,14 @@ typedef struct cashash_s cashash_t;
  * @note A bucket count of 1 is valid, but all keys will collide into one chain.
  */
 cashash_t *cashash_create(size_t bucket_count);
+
+cashash_t *cashash_create_with_strategy(size_t bucket_count,
+                                        cashash_hash_strategy_t strategy,
+                                        cashash_strategy_option_t option);
+
+cashash_t *cashash_create_with_config(size_t bucket_count,
+                                      cashash_config_t config,
+                                      cashash_strategy_option_t option);
 
 /**
  * @brief Destroy a hash table.
@@ -87,7 +127,8 @@ void cashash_destroy(cashash_t *table);
  *
  * @note The table stores the value pointer as-is. It does not copy the value.
  */
-bool cashash_insert(cashash_t *table, const char *key, void *value);
+bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
+                    void *value);
 
 /**
  * @brief Find a value by key.
@@ -103,7 +144,8 @@ bool cashash_insert(cashash_t *table, const char *key, void *value);
  * @warning Since NULL is also a valid `void *` value, this function cannot
  * distinguish between "key not found" and "key found with NULL value".
  */
-void *cashash_find(const cashash_t *table, const char *key);
+void *cashash_find(const cashash_t *table, const void *key,
+                   const size_t key_len);
 
 /**
  * @brief Get the number of stored key-value pairs.
@@ -145,7 +187,7 @@ size_t cashash_bucket_count(const cashash_t *table);
  * for freeing or otherwise managing the value if needed.
  * @note Removing a key decreases cashash_size() by 1.
  */
-bool cashash_remove(cashash_t *table, const char *key);
+bool cashash_remove(cashash_t *table, const void *key, const size_t key_len);
 
 /**
  * @brief Remove all entries from the hash table.

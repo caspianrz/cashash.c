@@ -4,8 +4,13 @@
 
 #define CKEY(key) (key), (sizeof(key) - 1)
 
+/** We use xxHash in this. **/
 int main(void) {
   cashash_t *map = cashash_create(128);
+  cashash_strategy_option_t option = {
+      .used = false,
+  };
+  cashash_create_with_strategy(128, CASHASH_HASH_STRATEGY_XXH3, option);
 
   if (map == NULL) {
     return 1;
