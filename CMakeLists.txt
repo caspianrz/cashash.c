@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(cashash.c
-	VERSION 0.3.0
+	VERSION 0.4.0
 	DESCRIPTION "A small C hashing library."
 	LANGUAGES C
 )
@@ -9,21 +9,55 @@ project(cashash.c
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-option(CAS_BUILD_TESTS "Build cashash tests" ON)
-option(CAS_BUILD_EXAMPLE "Build cashash examples" ON)
-option(CAS_BUILD_DOCS "Build documentation with Doxygen" ON)
+option(CAS_BUILD_TESTS "Build cashash tests." ON)
+option(CAS_BUILD_EXAMPLE "Build cashash examples." ON)
+option(CAS_BUILD_DOCS "Build documentation with Doxygen." ON)
 
+option(CAS_USE_XXHASH "Use xxHash algorithm library." OFF)
+option(CAS_FETCH_XXHASH "Fetch xxHash if it is not installed." ON)
+
+include(CheckIncludeFiles)
 include(GNUInstallDirs)
+include(FetchContent)
+
+
+set(cashash_libraries "")
+set(cashash_defines "")
+set(cashash_sources "src/cashash.c" "src/cashash_hash.c")
+
+if(CAS_USE_XXHASH)
+find_package(xxHash CONFIG QUIET)
+
+if(NOT xxHash_FOUND AND CAS_FETCH_XXHASH)
+	FetchContent_Declare(
+		xxhash
+		GIT_REPOSITORY https://github.com/cyan4973/xxhash.git
+		GIT_TAG v0.8.3
+		SOURCE_SUBDIR cmake_unofficial
+	)
+	FetchContent_MakeAvailable(xxhash)
+endif()
+	if(TARGET xxHash::xxhash)
+		list(APPEND cashash_libraries "xxHash::xxhash")
+    elseif(TARGET xxhash)
+		list(APPEND cashash_libraries "xxhash")
+    else()
+		message(FATAL_ERROR "CAS_USE_XXHASH=ON but xxHash was not found")
+    endif()
+	list(APPEND cashash_defines "CASHASH_USE_XXHASH=1")
+endif()
 
 add_library(cashash.c STATIC)
 add_library(cashash::cashash ALIAS cashash.c)
 
-target_sources(cashash.c PRIVATE "src/cashash.c")
+target_sources(cashash.c PRIVATE ${cashash_sources})
 target_include_directories(cashash.c
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+target_link_libraries(cashash.c PRIVATE ${cashash_libraries})
+target_compile_definitions(cashash.c PUBLIC ${cashash_defines})
 
 if(MSVC)
     target_compile_options(cashash.c
@@ -52,6 +86,10 @@ if(CAS_BUILD_EXAMPLE)
     set(examples
         "sample1:examples/sample1.c"
     )
+	if(CAS_USE_XXHASH)
+		list(APPEND examples "sample2:examples/sample2.c")
+	endif()
+
 	set(example_output_dir "${CMAKE_BINARY_DIR}/example")
 
     foreach(example ${examples})
@@ -77,33 +115,43 @@ endif()
 if(CAS_BUILD_TESTS)
     enable_testing()
 
-    add_executable(test_cashash
-        tests/test_cashash.c
-    )
+	set(tests
+		"test_cashash:tests/test_cashash.c"
+		"test_cashash_hash:tests/test_cashash_hash.c"
+	)
 
-    target_link_libraries(test_cashash
-        PRIVATE
-            cashash::cashash
-    )
+	foreach(test ${tests})
+		string(REPLACE ":" ";" pair ${test})
 
-	if(WIN32)
-        find_package(check CONFIG REQUIRED)
+		list(GET pair 0 name)
+		list(GET pair 1 source)
 
-        target_link_libraries(test_cashash
-            PRIVATE
-                $<IF:$<TARGET_EXISTS:Check::check>,Check::check,Check::checkShared>
-        )
-    else()
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(CHECK REQUIRED IMPORTED_TARGET check)
+		add_executable(${name} ${source})
 
-        target_link_libraries(test_cashash
-            PRIVATE
-                PkgConfig::CHECK
-        )
-    endif()
+		target_link_libraries(${name}
+			PRIVATE
+				cashash::cashash
+		)
 
-    add_test(NAME cashash_tests COMMAND test_cashash)
+		if(WIN32)
+			find_package(check CONFIG REQUIRED)
+
+			target_link_libraries(${name}
+				PRIVATE
+					$<IF:$<TARGET_EXISTS:Check::check>,Check::check,Check::checkShared>
+			)
+		else()
+			find_package(PkgConfig REQUIRED)
+			pkg_check_modules(CHECK REQUIRED IMPORTED_TARGET check)
+
+			target_link_libraries(${name}
+				PRIVATE
+					PkgConfig::CHECK
+			)
+		endif()
+
+		add_test(NAME ${name} COMMAND ${name})
+	endforeach()
 endif()
 
 if(CAS_BUILD_DOCS)
