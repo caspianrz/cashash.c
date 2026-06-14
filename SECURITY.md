@@ -12,6 +12,7 @@ That said, security reports are welcome. If a valid security issue is reported, 
 
 | Version | Supported | Notes |
 | ------- | --------- | ----- |
+| 0.3.0   | :white_check_mark: | Added remove and clear API. |
 | 0.2.0   | :white_check_mark: | Added dynamic bucket count. |
 | 0.1.0   | :white_check_mark: | Initial version. Basic fixed-size string-key hash map implementation. |
 | < 0.1.0 | :x: | Not supported. |
