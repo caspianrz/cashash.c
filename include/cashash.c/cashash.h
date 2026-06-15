@@ -91,6 +91,89 @@ typedef enum {
 } cashash_hash_strategy_t;
 
 /**
+ * @brief Represents a generic value datum stored in a cashash table.
+ *
+ * A value datum is a pointer-length pair used to describe arbitrary value data.
+ * The `data` pointer refers to the value bytes, and `length` stores the number
+ * of bytes available at that address.
+ *
+ * Unlike keys, value data is mutable from the API perspective because `data`
+ * is stored as `void *`.
+ *
+ * @note This struct does not imply ownership. Whether the hash table copies,
+ * borrows, or frees the pointed-to data depends on the table configuration and
+ * API used.
+ */
+typedef struct cashash_value_datum_s {
+  /**
+   * @brief Pointer to the value data.
+   *
+   * May point to any binary or user-defined data. The pointer may be `NULL`
+   * only when `length` is zero, unless explicitly allowed by the API using it.
+   */
+  void *data;
+
+  /**
+   * @brief Length of the value data in bytes.
+   *
+   * For strings, this should usually exclude the terminating `'\0'` unless the
+   * API explicitly expects null-terminated strings.
+   */
+  size_t length;
+} cashash_value_datum_t;
+
+/**
+ * @brief Represents a generic key datum used by a cashash table.
+ *
+ * A key datum is a pointer-length pair used to describe arbitrary key data.
+ * The `data` pointer is `const` because hash table operations should not modify
+ * key bytes supplied by the caller.
+ *
+ * @note This struct does not imply ownership. Whether the hash table copies,
+ * borrows, or frees the pointed-to key data depends on the table configuration
+ * and API used.
+ */
+typedef struct cashash_key_datum_s {
+  /**
+   * @brief Pointer to the key data.
+   *
+   * May point to any binary or user-defined key data. The pointed-to data
+   * should remain valid for the duration required by the API or table
+   * configuration.
+   */
+  const void *data;
+
+  /**
+   * @brief Length of the key data in bytes.
+   *
+   * For string keys, this should usually exclude the terminating `'\0'`.
+   */
+  size_t length;
+} cashash_key_datum_t;
+
+/**
+ * @brief Represents a key-value pair in a cashash table.
+ *
+ * This type groups a key datum and a value datum together. It is useful for
+ * iterator APIs, foreach callbacks, insertion helpers, and APIs that return or
+ * operate on whole hash table entries.
+ *
+ * @note The pair itself does not imply ownership of either `key.data` or
+ * `value.data`.
+ */
+typedef struct cashash_pair_s {
+  /**
+   * @brief Key component of the pair.
+   */
+  cashash_key_datum_t key;
+
+  /**
+   * @brief Value component of the pair.
+   */
+  cashash_value_datum_t value;
+} cashash_pair_t;
+
+/**
  * @brief Hash function callback type.
  *
  * Computes a hash value for `key_len` bytes starting at `key`.
@@ -267,6 +350,83 @@ cashash_t *cashash_create_with_config(size_t bucket_count,
                                       cashash_strategy_option_t option);
 
 /**
+ * @brief Insert or update a key-value pair.
+ *
+ * Inserts `key` with the given `value`. If the key already exists, its value
+ * is replaced and the table size does not increase.
+ *
+ * The key is copied internally using the configured key copy function.
+ *
+ * @param table Hash table.
+ * @param key datum to insert.
+ * @param value datum to insert.
+ *
+ * @return true if insertion or update succeeds.
+ * @return false if `table` is NULL, `key` is NULL, or allocation fails.
+ *
+ * @note The table stores the value pointer as-is. It does not copy the value.
+ * @note Keys may contain embedded `'\0'` bytes.
+ */
+bool cashash_insert(cashash_t *table, const cashash_key_datum_t key,
+                    const cashash_value_datum_t value);
+
+/**
+ * @brief Find a value by key.
+ *
+ * Searches the table for a key matching exactly `key_len` bytes from `key`.
+ *
+ * @param table Hash table.
+ * @param key datum contains key and it's size.
+ * @param value pointer which fills datum with value and it's size if found.
+ *
+ * @return true if key is found.
+ * @return false if key is not found, or if `table` or `key` is NULL.
+ *
+ * @warning Since NULL is also a valid `void *` value, this function cannot
+ * distinguish between "key not found" and "key found with NULL value".
+ */
+bool cashash_find(const cashash_t *table, const cashash_key_datum_t key,
+                  cashash_value_datum_t *value);
+
+/**
+ * @brief Remove a key-value pair from the hash table.
+ *
+ * Searches for `key` and removes the matching entry if it exists.
+ *
+ * This function frees the internally copied key and the internal table node,
+ * but it does not free the stored value pointer.
+ *
+ * @param table Hash table.
+ * @param key datum for removal.
+ *
+ * @return true if the key was found and removed.
+ * @return false if the key was not found, or if `table` or `key` is NULL.
+ *
+ * @note The table does not own inserted values, so the caller is responsible
+ * for freeing or otherwise managing the value if needed.
+ * @note Removing a key decreases cashash_size() by 1.
+ */
+bool cashash_remove(cashash_t *table, const cashash_key_datum_t key);
+
+/**
+ * @brief Remove all entries from the hash table.
+ *
+ * Clears every key-value pair from the table while keeping the table itself
+ * allocated and reusable.
+ *
+ * This function frees all internally copied keys and internal table nodes,
+ * but it does not free any stored value pointers.
+ *
+ * @param table Hash table to clear. Passing NULL is allowed.
+ *
+ * @note The bucket array remains allocated.
+ * @note The current bucket count is unchanged.
+ * @note After clearing, cashash_size() returns 0.
+ * @note New entries may be inserted into the table after calling this function.
+ */
+void cashash_clear(cashash_t *table);
+
+/**
  * @brief Destroy a hash table.
  *
  * Frees all internal nodes, copied keys, bucket storage, and the table itself.
@@ -277,46 +437,6 @@ cashash_t *cashash_create_with_config(size_t bucket_count,
  * for managing the lifetime of values inserted into the table.
  */
 void cashash_destroy(cashash_t *table);
-
-/**
- * @brief Insert or update a key-value pair.
- *
- * Inserts `key` with the given `value`. If the key already exists, its value
- * is replaced and the table size does not increase.
- *
- * The key is copied internally using the configured key copy function.
- *
- * @param table Hash table.
- * @param key Pointer to key bytes.
- * @param key_len Number of bytes in `key`.
- * @param value Value pointer to associate with the key.
- *
- * @return true if insertion or update succeeds.
- * @return false if `table` is NULL, `key` is NULL, or allocation fails.
- *
- * @note The table stores the value pointer as-is. It does not copy the value.
- * @note Keys may contain embedded `'\0'` bytes.
- */
-bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
-                    void *value);
-
-/**
- * @brief Find a value by key.
- *
- * Searches the table for a key matching exactly `key_len` bytes from `key`.
- *
- * @param table Hash table.
- * @param key Pointer to key bytes.
- * @param key_len Number of bytes in `key`.
- *
- * @return The value associated with `key`.
- * @return NULL if the key is not found, or if `table` or `key` is NULL.
- *
- * @warning Since NULL is also a valid `void *` value, this function cannot
- * distinguish between "key not found" and "key found with NULL value".
- */
-void *cashash_find(const cashash_t *table, const void *key,
-                   const size_t key_len);
 
 /**
  * @brief Get the number of stored key-value pairs.
@@ -339,45 +459,6 @@ size_t cashash_size(const cashash_t *table);
  * @note The bucket count may increase automatically when dynamic growth occurs.
  */
 size_t cashash_bucket_count(const cashash_t *table);
-
-/**
- * @brief Remove a key-value pair from the hash table.
- *
- * Searches for `key` and removes the matching entry if it exists.
- *
- * This function frees the internally copied key and the internal table node,
- * but it does not free the stored value pointer.
- *
- * @param table Hash table.
- * @param key Pointer to key bytes to remove.
- * @param key_len Number of bytes in `key`.
- *
- * @return true if the key was found and removed.
- * @return false if the key was not found, or if `table` or `key` is NULL.
- *
- * @note The table does not own inserted values, so the caller is responsible
- * for freeing or otherwise managing the value if needed.
- * @note Removing a key decreases cashash_size() by 1.
- */
-bool cashash_remove(cashash_t *table, const void *key, const size_t key_len);
-
-/**
- * @brief Remove all entries from the hash table.
- *
- * Clears every key-value pair from the table while keeping the table itself
- * allocated and reusable.
- *
- * This function frees all internally copied keys and internal table nodes,
- * but it does not free any stored value pointers.
- *
- * @param table Hash table to clear. Passing NULL is allowed.
- *
- * @note The bucket array remains allocated.
- * @note The current bucket count is unchanged.
- * @note After clearing, cashash_size() returns 0.
- * @note New entries may be inserted into the table after calling this function.
- */
-void cashash_clear(cashash_t *table);
 
 /**
  * @}
