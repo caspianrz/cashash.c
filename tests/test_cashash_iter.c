@@ -27,12 +27,7 @@ static void populate_map(cashash_t *table) {
         .length = sizeof test_keys[i],
     };
 
-    const cashash_value_datum_t value = {
-        .data = &test_values[i],
-        .length = sizeof test_values[i],
-    };
-
-    ck_assert(cashash_insert(table, key, value));
+    ck_assert(cashash_insert(table, key, &test_values[i]));
   }
 }
 
@@ -64,12 +59,7 @@ START_TEST(test_iter_single_entry) {
       .length = sizeof key_data,
   };
 
-  const cashash_value_datum_t value = {
-      .data = &value_data,
-      .length = sizeof value_data,
-  };
-
-  ck_assert(cashash_insert(map, key, value));
+  ck_assert(cashash_insert(map, key, &value_data));
 
   cashash_iter_t iter;
   cashash_pair_t pair;
@@ -80,10 +70,10 @@ START_TEST(test_iter_single_entry) {
   ck_assert(cashash_iter_next(&iter, &pair));
 
   ck_assert_uint_eq(pair.key.length, sizeof key_data);
-  ck_assert_uint_eq(pair.value.length, sizeof value_data);
+  ck_assert_ptr_nonnull(pair.value);
 
   ck_assert_int_eq(datum_to_int(pair.key.data), 42);
-  ck_assert_int_eq(datum_to_int(pair.value.data), 57);
+  ck_assert_int_eq(*(int *)pair.value, 57);
 
   ck_assert_false(cashash_iter_has_next(&iter));
   ck_assert_false(cashash_iter_next(&iter, &pair));
@@ -110,10 +100,10 @@ START_TEST(test_iter_multiple_entries) {
     ck_assert(cashash_iter_next(&iter, &pair));
 
     ck_assert_uint_eq(pair.key.length, sizeof(int));
-    ck_assert_uint_eq(pair.value.length, sizeof(int));
+    ck_assert_ptr_nonnull(pair.value);
 
     int key = datum_to_int(pair.key.data);
-    int value = datum_to_int(pair.value.data);
+    int value = *(int *)pair.value;
 
     ck_assert_int_ge(key, 0);
     ck_assert_int_lt(key, 10);

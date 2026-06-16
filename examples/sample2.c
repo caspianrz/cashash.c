@@ -17,22 +17,20 @@ int main(void) {
     return 1;
   }
 
-  cashash_insert(map, DATUM(key, "name"), DATUM(value, "cashash"));
-  cashash_insert(map, DATUM(key, "language"), DATUM(value, "C"));
+  cashash_insert(map, DATUM(key, "name"), (void *)"CasHash");
+  cashash_insert(map, DATUM(key, "language"), (void *)"C");
 
   printf("size: %zu\n", cashash_size(map));
 
-  cashash_value_datum_t result;
-  bool name_found = cashash_find(map, DATUM(key, "name"), &result);
-
-  if (name_found) {
-    printf("name: %s\n", (char *)result.data);
+  char *name = cashash_find(map, DATUM(key, "name"));
+  if (name != NULL) {
+    printf("name: %s\n", name);
   }
 
-  bool language_found = cashash_find(map, DATUM(key, "language"), &result);
+  char *language = cashash_find(map, DATUM(key, "language"));
 
-  if (language_found) {
-    printf("language: %s\n", (char *)result.data);
+  if (language != NULL) {
+    printf("language: %s\n", language);
   }
 
   cashash_destroy(map);

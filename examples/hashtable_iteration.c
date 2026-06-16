@@ -13,10 +13,7 @@ void populate_map(cashash_t *table) {
         .data = keys + key,
         .length = sizeof(int),
     };
-    const cashash_value_datum_t v = {
-        .data = values + key,
-        .length = sizeof(int),
-    };
+    void *v = values + key;
     cashash_insert(table, k, v);
   }
 }
@@ -30,6 +27,17 @@ int main(void) {
 
   populate_map(map);
 
+  int k = 1;
+  cashash_key_datum_t key = {.data = &k, .length = sizeof(int)};
+  void *value = cashash_find(map, key);
+  if (value == NULL) {
+    printf("found null?!\n");
+  } else {
+    int *int_value = value;
+    printf("Before: %d\n", *int_value);
+    *int_value = 123;
+    printf("After: %d\n", *int_value);
+  }
   cashash_iter_t iterator;
 
   cashash_iter_init(map, &iterator);
@@ -41,7 +49,7 @@ int main(void) {
     }
 
     int key = *(int *)pair.key.data;
-    int value = *(int *)pair.value.data;
+    int value = *(int *)pair.value;
     printf("Key: %d, Value: %d\n", key, value);
   }
 

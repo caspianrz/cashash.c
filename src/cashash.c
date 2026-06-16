@@ -9,7 +9,6 @@
 #define CASHASH_MAX_LOAD_DENOMINATOR 4
 #define CASHASH_GROWTH_FACTOR 2
 
-
 cashash_t *cashash_create(size_t bucket_count) {
   cashash_hash_strategy_t strategy = CASHASH_HASH_STRATEGY_FNV1A;
   cashash_strategy_option_t options;
@@ -174,7 +173,7 @@ void cashash_destroy(cashash_t *table) {
 }
 
 bool cashash_insert(cashash_t *table, const cashash_key_datum_t key,
-                    const cashash_value_datum_t value) {
+                    void *value) {
   size_t hash;
   size_t index;
   cashash_node_t *node;
@@ -204,8 +203,7 @@ bool cashash_insert(cashash_t *table, const cashash_key_datum_t key,
   while (node != NULL) {
     if (node->key.length == key.length &&
         table->config.equal(node->key.data, key.data, key.length)) {
-      node->value.data = value.data;
-      node->value.length = value.length;
+      node->value = value;
       return true;
     }
 
@@ -282,8 +280,7 @@ bool cashash_insert(cashash_t *table, const cashash_key_datum_t key,
 
   new_node->key.data = key_copy;
   new_node->key.length = key.length;
-  new_node->value.data = value.data;
-  new_node->value.length = value.length;
+  new_node->value = value;
   new_node->next = table->buckets[index];
 
   table->buckets[index] = new_node;
@@ -292,15 +289,14 @@ bool cashash_insert(cashash_t *table, const cashash_key_datum_t key,
   return true;
 }
 
-bool cashash_find(const cashash_t *table, const cashash_key_datum_t key,
-                  cashash_value_datum_t *value) {
+void *cashash_find(const cashash_t *table, const cashash_key_datum_t key) {
   size_t hash;
   size_t index;
   cashash_node_t *node;
 
   if (table == NULL || key.data == NULL || table->buckets == NULL ||
       table->config.hash == NULL || table->config.equal == NULL) {
-    return false;
+    return NULL;
   }
 
 #ifdef CASHASH_USE_XXHASH
@@ -320,14 +316,13 @@ bool cashash_find(const cashash_t *table, const cashash_key_datum_t key,
   while (node != NULL) {
     if (node->key.length == key.length &&
         table->config.equal(node->key.data, key.data, key.length)) {
-      *value = node->value;
-      return true;
+      return node->value;
     }
 
     node = node->next;
   }
 
-  return false;
+  return NULL;
 }
 
 size_t cashash_size(const cashash_t *table) {

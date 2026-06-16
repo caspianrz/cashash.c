@@ -97,38 +97,6 @@ typedef enum {
 } cashash_hash_strategy_t;
 
 /**
- * @brief Represents a generic value datum stored in a cashash table.
- *
- * A value datum is a pointer-length pair used to describe arbitrary value data.
- * The `data` pointer refers to the value bytes, and `length` stores the number
- * of bytes available at that address.
- *
- * Unlike keys, value data is mutable from the API perspective because `data`
- * is stored as `void *`.
- *
- * @note This struct does not imply ownership. Whether the hash table copies,
- * borrows, or frees the pointed-to data depends on the table configuration and
- * API used.
- */
-typedef struct cashash_value_datum_s {
-  /**
-   * @brief Pointer to the value data.
-   *
-   * May point to any binary or user-defined data. The pointer may be `NULL`
-   * only when `length` is zero, unless explicitly allowed by the API using it.
-   */
-  void *data;
-
-  /**
-   * @brief Length of the value data in bytes.
-   *
-   * For strings, this should usually exclude the terminating `'\0'` unless the
-   * API explicitly expects null-terminated strings.
-   */
-  size_t length;
-} cashash_value_datum_t;
-
-/**
  * @brief Represents a generic key datum used by a cashash table.
  *
  * A key datum is a pointer-length pair used to describe arbitrary key data.
@@ -176,7 +144,7 @@ typedef struct cashash_pair_s {
   /**
    * @brief Value component of the pair.
    */
-  cashash_value_datum_t value;
+  void *value;
 } cashash_pair_t;
 
 /**
@@ -322,9 +290,9 @@ struct cashash_node_s {
   cashash_key_datum_t key;
 
   /**
-   * @brief Value datum for this entry.
+   * @brief Value pointer for this entry.
    */
-  cashash_value_datum_t value;
+  void *value;
 };
 
 /**
@@ -426,7 +394,7 @@ cashash_t *cashash_create_with_config(size_t bucket_count,
  *
  * @param table Hash table.
  * @param key datum to insert.
- * @param value datum to insert.
+ * @param value pointer to insert.
  *
  * @return true if insertion or update succeeds.
  * @return false if `table` is NULL, `key` is NULL, or allocation fails.
@@ -435,7 +403,7 @@ cashash_t *cashash_create_with_config(size_t bucket_count,
  * @note Keys may contain embedded `'\0'` bytes.
  */
 bool cashash_insert(cashash_t *table, const cashash_key_datum_t key,
-                    const cashash_value_datum_t value);
+                    void *data);
 
 /**
  * @brief Find a value by key.
@@ -446,14 +414,13 @@ bool cashash_insert(cashash_t *table, const cashash_key_datum_t key,
  * @param key datum contains key and it's size.
  * @param value pointer which fills datum with value and it's size if found.
  *
- * @return true if key is found.
- * @return false if key is not found, or if `table` or `key` is NULL.
+ * @return value pointer if key is found.
+ * @return NULL if key is not found, or if `table` or `key` is NULL.
  *
  * @warning Since NULL is also a valid `void *` value, this function cannot
  * distinguish between "key not found" and "key found with NULL value".
  */
-bool cashash_find(const cashash_t *table, const cashash_key_datum_t key,
-                  cashash_value_datum_t *value);
+void *cashash_find(const cashash_t *table, const cashash_key_datum_t key);
 
 /**
  * @brief Remove a key-value pair from the hash table.
