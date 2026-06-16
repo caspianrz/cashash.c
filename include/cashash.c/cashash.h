@@ -42,6 +42,12 @@
  */
 
 /**
+ * @typedef cashash_node_t
+ * @brief Alias for the internal hash table node type.
+ */
+typedef struct cashash_node_s cashash_node_t;
+
+/**
  * @brief Opaque hash table type.
  *
  * The internal representation is hidden from users of the library.
@@ -292,6 +298,67 @@ typedef struct {
   } xxh64;
 #endif
 } cashash_strategy_option_t;
+
+/**
+ * @struct cashash_node_s
+ * @brief Internal hash table node.
+ *
+ * Stores one key-value pair inside a bucket chain.
+ */
+struct cashash_node_s {
+  /**
+   * @brief Next node in the bucket chain.
+   */
+  struct cashash_node_s *next;
+
+  /**
+   * @brief Cached hash of the key.
+   */
+  size_t hash;
+
+  /**
+   * @brief Key datum for this entry.
+   */
+  cashash_key_datum_t key;
+
+  /**
+   * @brief Value datum for this entry.
+   */
+  cashash_value_datum_t value;
+};
+
+/**
+ * @struct cashash_s
+ * @brief Hash table instance.
+ *
+ * Stores the bucket array, entry count, and configuration used by the table.
+ */
+struct cashash_s {
+  /**
+   * @brief Array of bucket chains.
+   */
+  cashash_node_t **buckets;
+
+  /**
+   * @brief Number of buckets in the table.
+   */
+  size_t bucket_count;
+
+  /**
+   * @brief Number of entries stored in the table.
+   */
+  size_t size;
+
+  /**
+   * @brief Hash table behavior configuration.
+   */
+  cashash_config_t config;
+
+  /**
+   * @brief Strategy-specific options.
+   */
+  cashash_strategy_option_t option;
+};
 
 /**
  * @brief Create a new hash table using the default strategy.

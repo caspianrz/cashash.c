@@ -23,7 +23,7 @@ include(FetchContent)
 
 set(cashash_libraries "")
 set(cashash_defines "")
-set(cashash_sources "src/cashash.c" "src/cashash_hash.c")
+set(cashash_sources "src/cashash.c" "src/cashash_hash.c" "src/cashash_iter.c")
 
 if(CAS_USE_XXHASH)
 find_package(xxHash CONFIG QUIET)
@@ -85,6 +85,7 @@ install(DIRECTORY include/
 if(CAS_BUILD_EXAMPLE)
     set(examples
         "sample1:examples/sample1.c"
+		"hashtable_iteration.c:examples/hashtable_iteration.c"
     )
 	if(CAS_USE_XXHASH)
 		list(APPEND examples "sample2:examples/sample2.c")
@@ -118,6 +119,7 @@ if(CAS_BUILD_TESTS)
 	set(tests
 		"test_cashash:tests/test_cashash.c"
 		"test_cashash_hash:tests/test_cashash_hash.c"
+		"test_cashash_test:tests/test_cashash_iter.c"
 	)
 
 	foreach(test ${tests})

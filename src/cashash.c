@@ -9,21 +9,6 @@
 #define CASHASH_MAX_LOAD_DENOMINATOR 4
 #define CASHASH_GROWTH_FACTOR 2
 
-typedef struct cashash_node_s {
-  struct cashash_node_s *next;
-  size_t hash;
-  cashash_key_datum_t key;
-  cashash_value_datum_t value;
-} cashash_node_t;
-
-struct cashash_s {
-  cashash_node_t **buckets;
-  size_t bucket_count;
-  size_t size;
-
-  cashash_config_t config;
-  cashash_strategy_option_t option;
-};
 
 cashash_t *cashash_create(size_t bucket_count) {
   cashash_hash_strategy_t strategy = CASHASH_HASH_STRATEGY_FNV1A;
