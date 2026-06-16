@@ -18,6 +18,19 @@ void populate_map(cashash_t *table) {
   }
 }
 
+/** callback function for foreach. */
+static bool add_value_to_even_keys(cashash_pair_t pair, void *value) {
+  int *v = value;
+
+  const int *key_value = pair.key.data;
+  int *pair_value = pair.value;
+  if (*key_value % 2 == 0) {
+    *pair_value = (*pair_value) + *v;
+  }
+
+  return true;
+}
+
 int main(void) {
   cashash_t *map = cashash_create(128);
 
@@ -27,15 +40,10 @@ int main(void) {
 
   populate_map(map);
 
-  int k = 1;
-  cashash_key_datum_t key = {.data = &k, .length = sizeof(int)};
-  void *value = cashash_find(map, key);
-  if (value != NULL) {
-    int *int_value = value;
-    *int_value = 123;
-  }
-  cashash_iter_t iterator;
+  int callback_data = 3;
+  cashash_foreach(map, add_value_to_even_keys, &callback_data);
 
+  cashash_iter_t iterator;
   cashash_iter_init(map, &iterator);
   cashash_pair_t pair;
 

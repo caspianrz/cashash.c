@@ -57,3 +57,27 @@ bool cashash_iter_next(cashash_iter_t *iter, cashash_pair_t *pair) {
 
   return true;
 }
+
+bool cashash_foreach(cashash_t *table, cashash_foreach_fn callback,
+                     void *user_data) {
+  if (table == NULL || callback == NULL) {
+    return false;
+  }
+
+  cashash_iter_t iter;
+  cashash_pair_t pair;
+
+  cashash_iter_init(table, &iter);
+
+  while (cashash_iter_has_next(&iter)) {
+    if (!cashash_iter_next(&iter, &pair)) {
+      return false;
+    }
+
+    if (!callback(pair, user_data)) {
+      return false;
+    }
+  }
+
+  return true;
+}

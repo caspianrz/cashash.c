@@ -77,4 +77,35 @@ bool cashash_iter_has_next(cashash_iter_t *iter);
  */
 bool cashash_iter_next(cashash_iter_t *iter, cashash_pair_t *pair);
 
+/**
+ * @typedef cashash_foreach_fn
+ * @brief Callback function used by cashash_foreach().
+ *
+ * This callback is called once for each key-value pair in the hash table.
+ *
+ * @param pair Current key-value pair.
+ * @param user_data User-provided context pointer.
+ *
+ * @return `true` to continue iteration.
+ * @return `false` to stop iteration early.
+ */
+typedef bool (*cashash_foreach_fn)(cashash_pair_t pair, void *user_data);
+
+/**
+ * @brief Iterate over all key-value pairs in a hash table.
+ *
+ * Calls the given callback once for each entry in the table.
+ * Iteration stops early if the callback returns `false`.
+ *
+ * @param table Hash table to iterate over.
+ * @param callback Function to call for each key-value pair.
+ * @param user_data Optional user-provided context passed to the callback.
+ *
+ * @return `true` if all entries were visited.
+ * @return `false` if the table or callback is invalid, or if the callback stops
+ * iteration.
+ */
+bool cashash_foreach(cashash_t *table, cashash_foreach_fn callback,
+                     void *user_data);
+
 #endif /* CASHASH_ITER_H */

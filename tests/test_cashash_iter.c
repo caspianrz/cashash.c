@@ -10,6 +10,20 @@
 #define ck_assert_false(expr) ck_assert(!(expr))
 #endif
 
+typedef struct foreach_count_ctx {
+  size_t count;
+} foreach_count_ctx_t;
+
+typedef struct foreach_seen_ctx {
+  bool seen[10];
+  size_t count;
+} foreach_seen_ctx_t;
+
+typedef struct foreach_stop_ctx {
+  size_t count;
+  size_t stop_after;
+} foreach_stop_ctx_t;
+
 static const int test_keys[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
 static int test_values[10] = {15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
@@ -29,6 +43,45 @@ static void populate_map(cashash_t *table) {
 
     ck_assert(cashash_insert(table, key, &test_values[i]));
   }
+}
+
+/** Foreach callbacks */
+
+static bool foreach_count_callback(cashash_pair_t pair, void *user_data) {
+  (void)pair;
+  foreach_count_ctx_t *ctx = user_data;
+  ctx->count++;
+  return true;
+}
+
+static bool foreach_seen_callback(cashash_pair_t pair, void *user_data) {
+  foreach_seen_ctx_t *ctx = user_data;
+  ck_assert_uint_eq(pair.key.length, sizeof(int));
+  ck_assert_ptr_nonnull(pair.value);
+  int key = datum_to_int(pair.key.data);
+  int value = *(int *)pair.value;
+  ck_assert_int_ge(key, 0);
+  ck_assert_int_lt(key, 10);
+  ck_assert_int_eq(value, key + 15);
+  ck_assert(!ctx->seen[key]);
+  ctx->seen[key] = true;
+  ctx->count++;
+  return true;
+}
+
+static bool foreach_stop_callback(cashash_pair_t pair, void *user_data) {
+  (void)pair;
+  foreach_stop_ctx_t *ctx = user_data;
+  ctx->count++;
+  return ctx->count < ctx->stop_after;
+}
+
+static bool foreach_add_ten_callback(cashash_pair_t pair, void *user_data) {
+  (void)user_data;
+  ck_assert_ptr_nonnull(pair.value);
+  int *value = pair.value;
+  *value += 10;
+  return true;
 }
 
 START_TEST(test_iter_empty_table) {
@@ -196,19 +249,113 @@ START_TEST(test_iter_null_arguments) {
 }
 END_TEST
 
+START_TEST(test_foreach_empty_table) {
+  cashash_t *map = cashash_create(8);
+  ck_assert_ptr_nonnull(map);
+  foreach_count_ctx_t ctx = {
+      .count = 0,
+  };
+  ck_assert(cashash_foreach(map, foreach_count_callback, &ctx));
+  ck_assert_uint_eq(ctx.count, 0);
+  cashash_destroy(map);
+}
+END_TEST START_TEST(test_foreach_multiple_entries) {
+  cashash_t *map = cashash_create(8);
+  ck_assert_ptr_nonnull(map);
+  populate_map(map);
+  foreach_seen_ctx_t ctx = {0};
+  ck_assert(cashash_foreach(map, foreach_seen_callback, &ctx));
+  ck_assert_uint_eq(ctx.count, 10);
+  for (size_t i = 0; i < 10; i++) {
+    ck_assert(ctx.seen[i]);
+  }
+  cashash_destroy(map);
+}
+END_TEST START_TEST(test_foreach_user_data_is_passed) {
+  cashash_t *map = cashash_create(8);
+  ck_assert_ptr_nonnull(map);
+  populate_map(map);
+  foreach_count_ctx_t ctx = {
+      .count = 0,
+  };
+  ck_assert(cashash_foreach(map, foreach_count_callback, &ctx));
+  ck_assert_uint_eq(ctx.count, 10);
+  cashash_destroy(map);
+}
+END_TEST START_TEST(test_foreach_can_stop_early) {
+  cashash_t *map = cashash_create(8);
+  ck_assert_ptr_nonnull(map);
+  populate_map(map);
+  foreach_stop_ctx_t ctx = {
+      .count = 0,
+      .stop_after = 3,
+  };
+  ck_assert(!cashash_foreach(map, foreach_stop_callback, &ctx));
+  ck_assert_uint_eq(ctx.count, 3);
+  cashash_destroy(map);
+}
+END_TEST START_TEST(test_foreach_can_mutate_values) {
+  cashash_t *map = cashash_create(8);
+  ck_assert_ptr_nonnull(map);
+  static const int keys[3] = {1, 2, 3};
+  int values[3] = {10, 20, 30};
+  for (size_t i = 0; i < 3; i++) {
+    const cashash_key_datum_t key = {
+        .data = &keys[i],
+        .length = sizeof keys[i],
+    };
+    ck_assert(cashash_insert(map, key, &values[i]));
+  }
+  ck_assert(cashash_foreach(map, foreach_add_ten_callback, NULL));
+  ck_assert_int_eq(values[0], 20);
+  ck_assert_int_eq(values[1], 30);
+  ck_assert_int_eq(values[2], 40);
+  for (size_t i = 0; i < 3; i++) {
+    const cashash_key_datum_t key = {
+        .data = &keys[i],
+        .length = sizeof keys[i],
+    };
+    int *value = cashash_find(map, key);
+    ck_assert_ptr_nonnull(value);
+    ck_assert_int_eq(*value, values[i]);
+  }
+  cashash_destroy(map);
+}
+END_TEST START_TEST(test_foreach_null_arguments) {
+  cashash_t *map = cashash_create(8);
+  ck_assert_ptr_nonnull(map);
+  foreach_count_ctx_t ctx = {
+      .count = 0,
+  };
+  ck_assert(!cashash_foreach(NULL, foreach_count_callback, &ctx));
+  ck_assert(!cashash_foreach(map, NULL, &ctx));
+  cashash_destroy(map);
+}
+END_TEST
+
 Suite *cashash_iter_suite(void) {
   Suite *suite = suite_create("cashash_iter");
 
-  TCase *core = tcase_create("core");
+  TCase *iter_next_case = tcase_create("iter_next");
+  TCase *foreach_case = tcase_create("foreach");
 
-  tcase_add_test(core, test_iter_empty_table);
-  tcase_add_test(core, test_iter_single_entry);
-  tcase_add_test(core, test_iter_multiple_entries);
-  tcase_add_test(core, test_iter_has_next_does_not_advance);
-  tcase_add_test(core, test_iter_next_can_drive_iteration_without_has_next);
-  tcase_add_test(core, test_iter_null_arguments);
+  tcase_add_test(iter_next_case, test_iter_empty_table);
+  tcase_add_test(iter_next_case, test_iter_single_entry);
+  tcase_add_test(iter_next_case, test_iter_multiple_entries);
+  tcase_add_test(iter_next_case, test_iter_has_next_does_not_advance);
+  tcase_add_test(iter_next_case,
+                 test_iter_next_can_drive_iteration_without_has_next);
+  tcase_add_test(iter_next_case, test_iter_null_arguments);
 
-  suite_add_tcase(suite, core);
+  tcase_add_test(foreach_case, test_foreach_empty_table);
+  tcase_add_test(foreach_case, test_foreach_multiple_entries);
+  tcase_add_test(foreach_case, test_foreach_user_data_is_passed);
+  tcase_add_test(foreach_case, test_foreach_can_stop_early);
+  tcase_add_test(foreach_case, test_foreach_can_mutate_values);
+  tcase_add_test(foreach_case, test_foreach_null_arguments);
+
+  suite_add_tcase(suite, iter_next_case);
+  suite_add_tcase(suite, foreach_case);
 
   return suite;
 }

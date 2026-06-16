@@ -85,7 +85,8 @@ install(DIRECTORY include/
 if(CAS_BUILD_EXAMPLE)
     set(examples
         "sample1:examples/sample1.c"
-		"hashtable_iteration.c:examples/hashtable_iteration.c"
+		"hashtable_iteration:examples/hashtable_iteration.c"
+		"hashtable_foreach:examples/hashtable_foreach.c"
     )
 	if(CAS_USE_XXHASH)
 		list(APPEND examples "sample2:examples/sample2.c")
@@ -119,7 +120,7 @@ if(CAS_BUILD_TESTS)
 	set(tests
 		"test_cashash:tests/test_cashash.c"
 		"test_cashash_hash:tests/test_cashash_hash.c"
-		"test_cashash_test:tests/test_cashash_iter.c"
+		"test_cashash_iter:tests/test_cashash_iter.c"
 	)
 
 	foreach(test ${tests})
