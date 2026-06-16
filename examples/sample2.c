@@ -2,7 +2,8 @@
 
 #include <stdio.h>
 
-#define CKEY(key) (key), (sizeof(key) - 1)
+#define DATUM(kind, value)                                                     \
+  ((cashash_##kind##_datum_t){.data = (value), .length = sizeof(value) - 1})
 
 /** We use xxHash in this. **/
 int main(void) {
@@ -16,18 +17,17 @@ int main(void) {
     return 1;
   }
 
-  cashash_insert(map, CKEY("name"), "cashash");
-  cashash_insert(map, CKEY("language"), "C");
+  cashash_insert(map, DATUM(key, "name"), (void *)"CasHash");
+  cashash_insert(map, DATUM(key, "language"), (void *)"C");
 
   printf("size: %zu\n", cashash_size(map));
 
-  char *name = cashash_find(map, CKEY("name"));
-
+  char *name = cashash_find(map, DATUM(key, "name"));
   if (name != NULL) {
     printf("name: %s\n", name);
   }
 
-  char *language = cashash_find(map, CKEY("language"));
+  char *language = cashash_find(map, DATUM(key, "language"));
 
   if (language != NULL) {
     printf("language: %s\n", language);

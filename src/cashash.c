@@ -9,22 +9,6 @@
 #define CASHASH_MAX_LOAD_DENOMINATOR 4
 #define CASHASH_GROWTH_FACTOR 2
 
-typedef struct cashash_node {
-  void *key;
-  size_t key_len;
-  void *value;
-  struct cashash_node *next;
-} cashash_node_t;
-
-struct cashash_s {
-  cashash_node_t **buckets;
-  size_t bucket_count;
-  size_t size;
-
-  cashash_config_t config;
-  cashash_strategy_option_t option;
-};
-
 cashash_t *cashash_create(size_t bucket_count) {
   cashash_hash_strategy_t strategy = CASHASH_HASH_STRATEGY_FNV1A;
   cashash_strategy_option_t options;
@@ -96,13 +80,13 @@ cashash_t *cashash_create_with_config(size_t bucket_count,
   return table;
 }
 
-bool cashash_remove(cashash_t *table, const void *key, const size_t key_len) {
+bool cashash_remove(cashash_t *table, const cashash_key_datum_t key) {
   size_t hash;
   size_t index;
   cashash_node_t *node;
   cashash_node_t *prev;
 
-  if (table == NULL || key == NULL || table->config.hash == NULL ||
+  if (table == NULL || key.data == NULL || table->config.hash == NULL ||
       table->config.equal == NULL) {
     return false;
   }
@@ -110,12 +94,12 @@ bool cashash_remove(cashash_t *table, const void *key, const size_t key_len) {
 #ifdef CASHASH_USE_XXHASH
   if (table->option.used &&
       table->config.strategy == CASHASH_HASH_STRATEGY_XXH64) {
-    hash = table->config.hash(key, key_len, table->option.xxh64.seed);
+    hash = table->config.hash(key.data, key.length, table->option.xxh64.seed);
   } else {
-    hash = table->config.hash(key, key_len);
+    hash = table->config.hash(key.data, key.length);
   }
 #else
-  hash = table->config.hash(key, key_len);
+  hash = table->config.hash(key.data, key.length);
 #endif
 
   index = hash % table->bucket_count;
@@ -124,8 +108,8 @@ bool cashash_remove(cashash_t *table, const void *key, const size_t key_len) {
   node = table->buckets[index];
 
   while (node != NULL) {
-    if (node->key_len == key_len &&
-        table->config.equal(node->key, key, key_len)) {
+    if (node->key.length == key.length &&
+        table->config.equal(node->key.data, key.data, key.length)) {
       if (prev == NULL) {
         table->buckets[index] = node->next;
       } else {
@@ -133,7 +117,7 @@ bool cashash_remove(cashash_t *table, const void *key, const size_t key_len) {
       }
 
       if (table->config.destroy_key != NULL) {
-        table->config.destroy_key(node->key);
+        table->config.destroy_key(node->key.data);
       }
 
       free(node);
@@ -165,7 +149,7 @@ void cashash_clear(cashash_t *table) {
       next = node->next;
 
       if (table->config.destroy_key != NULL) {
-        table->config.destroy_key(node->key);
+        table->config.destroy_key(node->key.data);
       }
 
       free(node);
@@ -188,7 +172,7 @@ void cashash_destroy(cashash_t *table) {
   free(table);
 }
 
-bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
+bool cashash_insert(cashash_t *table, const cashash_key_datum_t key,
                     void *value) {
   size_t hash;
   size_t index;
@@ -196,7 +180,7 @@ bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
   cashash_node_t *new_node;
   void *key_copy;
 
-  if (table == NULL || key == NULL || table->buckets == NULL ||
+  if (table == NULL || key.data == NULL || table->buckets == NULL ||
       table->config.hash == NULL || table->config.equal == NULL ||
       table->config.copy_key == NULL) {
     return false;
@@ -205,20 +189,20 @@ bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
 #ifdef CASHASH_USE_XXHASH
   if (table->option.used &&
       table->config.strategy == CASHASH_HASH_STRATEGY_XXH64) {
-    hash = table->config.hash(key, key_len, table->option.xxh64.seed);
+    hash = table->config.hash(key.data, key.length, table->option.xxh64.seed);
   } else {
-    hash = table->config.hash(key, key_len);
+    hash = table->config.hash(key.data, key.length);
   }
 #else
-  hash = table->config.hash(key, key_len);
+  hash = table->config.hash(key.data, key.length);
 #endif
 
   index = hash % table->bucket_count;
 
   node = table->buckets[index];
   while (node != NULL) {
-    if (node->key_len == key_len &&
-        table->config.equal(node->key, key, key_len)) {
+    if (node->key.length == key.length &&
+        table->config.equal(node->key.data, key.data, key.length)) {
       node->value = value;
       return true;
     }
@@ -255,13 +239,13 @@ bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
 #ifdef CASHASH_USE_XXHASH
         if (table->option.used &&
             table->config.strategy == CASHASH_HASH_STRATEGY_XXH64) {
-          node_hash = table->config.hash(node->key, node->key_len,
+          node_hash = table->config.hash(node->key.data, node->key.length,
                                          table->option.xxh64.seed);
         } else {
-          node_hash = table->config.hash(node->key, node->key_len);
+          node_hash = table->config.hash(node->key.data, node->key.length);
         }
 #else
-        node_hash = table->config.hash(node->key, node->key_len);
+        node_hash = table->config.hash(node->key.data, node->key.length);
 #endif
 
         node_index = node_hash % new_bucket_count;
@@ -280,7 +264,7 @@ bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
     index = hash % table->bucket_count;
   }
 
-  key_copy = table->config.copy_key(key, key_len);
+  key_copy = table->config.copy_key(key.data, key.length);
   if (key_copy == NULL) {
     return false;
   }
@@ -294,8 +278,8 @@ bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
     return false;
   }
 
-  new_node->key = key_copy;
-  new_node->key_len = key_len;
+  new_node->key.data = key_copy;
+  new_node->key.length = key.length;
   new_node->value = value;
   new_node->next = table->buckets[index];
 
@@ -305,13 +289,12 @@ bool cashash_insert(cashash_t *table, const void *key, const size_t key_len,
   return true;
 }
 
-void *cashash_find(const cashash_t *table, const void *key,
-                   const size_t key_len) {
+void *cashash_find(const cashash_t *table, const cashash_key_datum_t key) {
   size_t hash;
   size_t index;
   cashash_node_t *node;
 
-  if (table == NULL || key == NULL || table->buckets == NULL ||
+  if (table == NULL || key.data == NULL || table->buckets == NULL ||
       table->config.hash == NULL || table->config.equal == NULL) {
     return NULL;
   }
@@ -319,20 +302,20 @@ void *cashash_find(const cashash_t *table, const void *key,
 #ifdef CASHASH_USE_XXHASH
   if (table->option.used &&
       table->config.strategy == CASHASH_HASH_STRATEGY_XXH64) {
-    hash = table->config.hash(key, key_len, table->option.xxh64.seed);
+    hash = table->config.hash(key.data, key.length, table->option.xxh64.seed);
   } else {
-    hash = table->config.hash(key, key_len);
+    hash = table->config.hash(key.data, key.length);
   }
 #else
-  hash = table->config.hash(key, key_len);
+  hash = table->config.hash(key.data, key.length);
 #endif
 
   index = hash % table->bucket_count;
 
   node = table->buckets[index];
   while (node != NULL) {
-    if (node->key_len == key_len &&
-        table->config.equal(node->key, key, key_len)) {
+    if (node->key.length == key.length &&
+        table->config.equal(node->key.data, key.data, key.length)) {
       return node->value;
     }
 
