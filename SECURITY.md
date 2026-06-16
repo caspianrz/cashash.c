@@ -12,6 +12,7 @@ That said, security reports are welcome. If a valid security issue is reported, 
 
 | Version | Supported | Notes |
 | ------- | --------- | ----- |
+| 0.5.0   | :white_check_mark: | Added iteration over maps. |
 | 0.4.0   | :white_check_mark: | Added generic key support. |
 | 0.3.0   | :x: | Added remove and clear API. |
 | 0.2.0   | :x: | Added dynamic bucket count. |
