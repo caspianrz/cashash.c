@@ -19,7 +19,7 @@ void populate_map(cashash_t *table) {
 }
 
 int main(void) {
-  cashash_t *map = cashash_create(128);
+  cashash_t *map = cashash_create_chain(128);
 
   if (map == NULL) {
     return 1;

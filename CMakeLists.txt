@@ -23,7 +23,7 @@ include(FetchContent)
 
 set(cashash_libraries "")
 set(cashash_defines "")
-set(cashash_sources "src/cashash.c" "src/cashash_hash.c" "src/cashash_iter.c")
+file(GLOB cashash_sources "src/*.c")
 
 if(CAS_USE_XXHASH)
 find_package(xxHash CONFIG QUIET)

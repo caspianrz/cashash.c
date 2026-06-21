@@ -7,11 +7,11 @@
 
 /** We use xxHash in this. **/
 int main(void) {
-  cashash_t *map = cashash_create(128);
   cashash_strategy_option_t option = {
       .used = false,
   };
-  cashash_create_with_strategy(128, CASHASH_HASH_STRATEGY_XXH3, option);
+  cashash_t *map = cashash_create_chain_with_strategy(
+      128, CASHASH_HASH_STRATEGY_XXH3, option);
 
   if (map == NULL) {
     return 1;
@@ -19,8 +19,6 @@ int main(void) {
 
   cashash_insert(map, DATUM(key, "name"), (void *)"CasHash");
   cashash_insert(map, DATUM(key, "language"), (void *)"C");
-
-  printf("size: %zu\n", cashash_size(map));
 
   char *name = cashash_find(map, DATUM(key, "name"));
   if (name != NULL) {
