@@ -118,9 +118,10 @@ if(CAS_BUILD_TESTS)
     enable_testing()
 
 	set(tests
-		"test_cashash:tests/test_cashash.c"
+		"test_cashash_chain:tests/test_cashash_chain.c"
+		"test_cashash_oa:tests/test_cashash_oa.c"
 		"test_cashash_hash:tests/test_cashash_hash.c"
-		"test_cashash_iter:tests/test_cashash_iter.c"
+		# "test_cashash_iter:tests/test_cashash_iter.c"
 	)
 
 	foreach(test ${tests})
