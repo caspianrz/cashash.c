@@ -273,8 +273,6 @@ void cashash_destroy(cashash_t *table) {
     cashash_oa_destroy(table);
     break;
   }
-
-  free(table);
 }
 
 bool cashash_insert(cashash_t *table, const cashash_key_datum_t key,

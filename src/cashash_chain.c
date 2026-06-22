@@ -249,4 +249,5 @@ void cashash_chain_destroy(cashash_t *table) {
 
   cashash_chain_clear(table);
   free(table->storage.chain.buckets);
+  free(table);
 }
