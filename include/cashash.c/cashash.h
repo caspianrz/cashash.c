@@ -34,6 +34,27 @@
  * or otherwise manage inserted values.
  */
 
+/**
+ * @brief Create a new hash table using the default backend.
+ *
+ * This function is kept for backward compatibility with older versions of
+ * cashash.c. It creates a separate-chaining hash table using the default
+ * configuration.
+ *
+ * New code may prefer calling cashash_create_chain() or
+ * cashash_create_open_addressing() explicitly to make the selected backend
+ * clear.
+ *
+ * @param bucket_count Initial number of buckets to allocate.
+ *
+ * @return A pointer to a new hash table on success.
+ * @return NULL if allocation fails or if `bucket_count` is 0.
+ *
+ * @note This function currently defaults to the separate-chaining backend.
+ * @note This is equivalent to calling cashash_create_chain(bucket_count).
+ */
+cashash_t *cashash_create(size_t bucket_count);
+
 /* -------------------------------------------------------------------------- */
 /* Open-addressing creation API */
 /* -------------------------------------------------------------------------- */

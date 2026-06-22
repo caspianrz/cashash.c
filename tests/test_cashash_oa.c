@@ -35,6 +35,162 @@ static size_t cashash_test_second_hash(const void *key, const size_t len, ...) {
   return hash | 1U;
 }
 
+static size_t cashash_oa_test_constant_hash(const void *key, const size_t len,
+                                            ...) {
+  (void)key;
+  (void)len;
+
+  return 0;
+}
+
+static bool cashash_oa_test_equal_bytes(const void *a, const void *b,
+                                        size_t len) {
+  return memcmp(a, b, len) == 0;
+}
+
+static void *cashash_oa_test_copy_bytes(const void *key, const size_t len) {
+  void *copy = malloc(len);
+
+  if (copy == NULL) {
+    return NULL;
+  }
+
+  memcpy(copy, key, len);
+
+  return copy;
+}
+
+static void cashash_oa_test_destroy_key(const void *key) { free((void *)key); }
+
+static cashash_t *
+cashash_oa_test_create_linear_with_constant_hash(size_t bucket_count) {
+  cashash_config_t config;
+  cashash_strategy_option_t option;
+
+  option.used = false;
+
+  config.hash = cashash_oa_test_constant_hash;
+  config.equal = cashash_oa_test_equal_bytes;
+  config.copy_key = cashash_oa_test_copy_bytes;
+  config.destroy_key = cashash_oa_test_destroy_key;
+
+  return cashash_create_open_addressing_with_config(
+      bucket_count, config, option, CASHASH_OA_PROBE_LINEAR);
+}
+
+static size_t cashash_oa_test_small_int_hash(const void *key, const size_t len,
+                                             ...) {
+  int value = 0;
+
+  if (key == NULL || len != sizeof(int)) {
+    return 0;
+  }
+
+  memcpy(&value, key, sizeof(value));
+
+  if (value < 0) {
+    value = -value;
+  }
+
+  return (size_t)(value % 4);
+}
+
+static cashash_t *
+cashash_oa_test_create_quadratic_with_constant_hash(size_t bucket_count) {
+  cashash_config_t config;
+  cashash_strategy_option_t option;
+
+  option.used = false;
+
+  config.hash = cashash_oa_test_constant_hash;
+  config.equal = cashash_oa_test_equal_bytes;
+  config.copy_key = cashash_oa_test_copy_bytes;
+  config.destroy_key = cashash_oa_test_destroy_key;
+
+  return cashash_create_open_addressing_with_config(
+      bucket_count, config, option, CASHASH_OA_PROBE_QUADRATIC);
+}
+
+static cashash_t *
+cashash_oa_test_create_quadratic_with_small_int_hash(size_t bucket_count) {
+  cashash_config_t config;
+  cashash_strategy_option_t option;
+
+  option.used = false;
+
+  config.hash = cashash_oa_test_small_int_hash;
+  config.equal = cashash_oa_test_equal_bytes;
+  config.copy_key = cashash_oa_test_copy_bytes;
+  config.destroy_key = cashash_oa_test_destroy_key;
+
+  return cashash_create_open_addressing_with_config(
+      bucket_count, config, option, CASHASH_OA_PROBE_QUADRATIC);
+}
+
+static size_t cashash_oa_second_hash_call_count = 0;
+
+static size_t cashash_oa_test_second_hash_int_step(const void *key,
+                                                   const size_t len, ...) {
+  int value = 0;
+
+  if (key == NULL || len != sizeof(int)) {
+    return 1;
+  }
+
+  memcpy(&value, key, sizeof(value));
+
+  if (value < 0) {
+    value = -value;
+  }
+
+  /*
+   * Always return an odd step.
+   *
+   * This works well with power-of-two table sizes, and also works with prime
+   * table sizes like 17.
+   */
+  return ((size_t)value * 2U) + 1U;
+}
+
+static size_t cashash_oa_test_second_hash_counting(const void *key,
+                                                   const size_t len, ...) {
+  cashash_oa_second_hash_call_count++;
+
+  return cashash_oa_test_second_hash_int_step(key, len);
+}
+
+static cashash_t *
+cashash_oa_test_create_double_hash_with_constant_hash(size_t bucket_count) {
+  cashash_config_t config;
+  cashash_strategy_option_t option;
+
+  option.used = false;
+
+  config.hash = cashash_oa_test_constant_hash;
+  config.equal = cashash_oa_test_equal_bytes;
+  config.copy_key = cashash_oa_test_copy_bytes;
+  config.destroy_key = cashash_oa_test_destroy_key;
+
+  return cashash_create_open_addressing_with_config_and_double_hash(
+      bucket_count, config, option, cashash_oa_test_second_hash_int_step, NULL);
+}
+
+static cashash_t *cashash_oa_test_create_double_hash_with_counting_second_hash(
+    size_t bucket_count) {
+  cashash_config_t config;
+  cashash_strategy_option_t option;
+
+  option.used = false;
+
+  config.hash = cashash_oa_test_constant_hash;
+  config.equal = cashash_oa_test_equal_bytes;
+  config.copy_key = cashash_oa_test_copy_bytes;
+  config.destroy_key = cashash_oa_test_destroy_key;
+
+  return cashash_create_open_addressing_with_config_and_double_hash(
+      bucket_count, config, option, cashash_oa_test_second_hash_counting, NULL);
+}
+
 START_TEST(test_oa_create_destroy_default) {
   cashash_t *map = cashash_create_open_addressing(128);
 
@@ -150,10 +306,10 @@ START_TEST(test_oa_binary_keys) {
 
   ck_assert_ptr_nonnull(map);
 
-  ck_assert(cashash_insert(map, CASHASH_KEY(key_a, sizeof(key_a)),
-                           CVAL("value-a")));
-  ck_assert(cashash_insert(map, CASHASH_KEY(key_b, sizeof(key_b)),
-                           CVAL("value-b")));
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(key_a, sizeof(key_a)), CVAL("value-a")));
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(key_b, sizeof(key_b)), CVAL("value-b")));
 
   ck_assert_uint_eq(cashash_size(map), 2);
 
@@ -177,18 +333,17 @@ START_TEST(test_oa_integer_keys) {
 
   ck_assert_ptr_nonnull(map);
 
-  ck_assert(cashash_insert(map, CASHASH_KEY(&key_a, sizeof(key_a)),
-                           CVAL("ten")));
-  ck_assert(cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)),
-                           CVAL("twenty")));
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&key_a, sizeof(key_a)), CVAL("ten")));
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), CVAL("twenty")));
   ck_assert(cashash_insert(map, CASHASH_KEY(&key_c, sizeof(key_c)),
                            CVAL("minus-thirty")));
 
   ck_assert_uint_eq(cashash_size(map), 3);
 
   ck_assert_str_eq(
-      cashash_oa_test_find_str(map, CASHASH_KEY(&key_a, sizeof(key_a))),
-      "ten");
+      cashash_oa_test_find_str(map, CASHASH_KEY(&key_a, sizeof(key_a))), "ten");
   ck_assert_str_eq(
       cashash_oa_test_find_str(map, CASHASH_KEY(&key_b, sizeof(key_b))),
       "twenty");
@@ -382,8 +537,7 @@ START_TEST(test_oa_key_is_copied) {
 
   ck_assert_ptr_nonnull(
       cashash_find(map, CASHASH_KEY(&old_key, sizeof old_key)));
-  ck_assert_ptr_null(
-      cashash_find(map, CASHASH_KEY(&new_key, sizeof new_key)));
+  ck_assert_ptr_null(cashash_find(map, CASHASH_KEY(&new_key, sizeof new_key)));
 
   cashash_destroy(map);
 }
@@ -438,9 +592,723 @@ START_TEST(test_oa_null_arguments) {
 }
 END_TEST
 
+START_TEST(test_oa_linear_forced_collisions_insert_and_find) {
+  cashash_t *map = cashash_oa_test_create_linear_with_constant_hash(16);
+
+  int keys[8];
+  int values[8];
+
+  ck_assert_ptr_nonnull(map);
+
+  for (size_t i = 0; i < 8; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 100;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  ck_assert(cashash_size(map) == 8);
+
+  for (size_t i = 0; i < 8; i++) {
+    int *found = cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i])));
+
+    ck_assert_ptr_nonnull(found);
+    ck_assert_int_eq(*found, values[i]);
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_linear_forced_collisions_update_existing_key) {
+  cashash_t *map = cashash_oa_test_create_linear_with_constant_hash(16);
+
+  int key_a = 1;
+  int key_b = 2;
+  int key_c = 3;
+
+  int value_a = 100;
+  int value_b_old = 200;
+  int value_b_new = 999;
+  int value_c = 300;
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_a, sizeof(key_a)), &value_a));
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), &value_b_old));
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_c, sizeof(key_c)), &value_c));
+
+  ck_assert(cashash_size(map) == 3);
+
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), &value_b_new));
+
+  ck_assert(cashash_size(map) == 3);
+
+  int *found_a = cashash_find(map, CASHASH_KEY(&key_a, sizeof(key_a)));
+  int *found_b = cashash_find(map, CASHASH_KEY(&key_b, sizeof(key_b)));
+  int *found_c = cashash_find(map, CASHASH_KEY(&key_c, sizeof(key_c)));
+
+  ck_assert_ptr_nonnull(found_a);
+  ck_assert_ptr_nonnull(found_b);
+  ck_assert_ptr_nonnull(found_c);
+
+  ck_assert_int_eq(*found_a, 100);
+  ck_assert_int_eq(*found_b, 999);
+  ck_assert_int_eq(*found_c, 300);
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_linear_remove_from_probe_cluster_preserves_later_keys) {
+  cashash_t *map = cashash_oa_test_create_linear_with_constant_hash(16);
+
+  int keys[6];
+  int values[6];
+
+  ck_assert_ptr_nonnull(map);
+
+  for (size_t i = 0; i < 6; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 100;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  ck_assert(cashash_size(map) == 6);
+
+  ck_assert(cashash_remove(map, CASHASH_KEY(&keys[2], sizeof(keys[2]))));
+
+  ck_assert(cashash_size(map) == 5);
+  ck_assert_ptr_null(cashash_find(map, CASHASH_KEY(&keys[2], sizeof(keys[2]))));
+
+  for (size_t i = 0; i < 6; i++) {
+    if (i == 2) {
+      continue;
+    }
+
+    int *found = cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i])));
+
+    ck_assert_ptr_nonnull(found);
+    ck_assert_int_eq(*found, values[i]);
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_linear_reuses_deleted_slot) {
+  cashash_t *map = cashash_oa_test_create_linear_with_constant_hash(16);
+
+  int key_a = 1;
+  int key_b = 2;
+  int key_c = 3;
+  int key_d = 4;
+
+  int value_a = 100;
+  int value_b = 200;
+  int value_c = 300;
+  int value_d = 400;
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_a, sizeof(key_a)), &value_a));
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), &value_b));
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_c, sizeof(key_c)), &value_c));
+
+  ck_assert(cashash_remove(map, CASHASH_KEY(&key_b, sizeof(key_b))));
+
+  ck_assert(cashash_size(map) == 2);
+
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_d, sizeof(key_d)), &value_d));
+
+  ck_assert(cashash_size(map) == 3);
+
+  ck_assert_ptr_null(cashash_find(map, CASHASH_KEY(&key_b, sizeof(key_b))));
+
+  int *found_a = cashash_find(map, CASHASH_KEY(&key_a, sizeof(key_a)));
+  int *found_c = cashash_find(map, CASHASH_KEY(&key_c, sizeof(key_c)));
+  int *found_d = cashash_find(map, CASHASH_KEY(&key_d, sizeof(key_d)));
+
+  ck_assert_ptr_nonnull(found_a);
+  ck_assert_ptr_nonnull(found_c);
+  ck_assert_ptr_nonnull(found_d);
+
+  ck_assert_int_eq(*found_a, 100);
+  ck_assert_int_eq(*found_c, 300);
+  ck_assert_int_eq(*found_d, 400);
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_linear_growth_preserves_probe_cluster) {
+  cashash_t *map = cashash_oa_test_create_linear_with_constant_hash(4);
+
+  int keys[16];
+  int values[16];
+
+  ck_assert_ptr_nonnull(map);
+
+  size_t before_bucket_count = cashash_bucket_count(map);
+
+  for (size_t i = 0; i < 16; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 1000;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  ck_assert(cashash_bucket_count(map) > before_bucket_count);
+  ck_assert(cashash_size(map) == 16);
+
+  for (size_t i = 0; i < 16; i++) {
+    int *found = cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i])));
+
+    ck_assert_ptr_nonnull(found);
+    ck_assert_int_eq(*found, values[i]);
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_linear_clear_after_probe_cluster) {
+  cashash_t *map = cashash_oa_test_create_linear_with_constant_hash(16);
+
+  int keys[8];
+  int values[8];
+
+  ck_assert_ptr_nonnull(map);
+
+  for (size_t i = 0; i < 8; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 100;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  size_t bucket_count = cashash_bucket_count(map);
+
+  cashash_clear(map);
+
+  ck_assert(cashash_size(map) == 0);
+  ck_assert(cashash_bucket_count(map) == bucket_count);
+
+  for (size_t i = 0; i < 8; i++) {
+    ck_assert_ptr_null(
+        cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i]))));
+  }
+
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&keys[0], sizeof(keys[0])), &values[0]));
+
+  ck_assert(cashash_size(map) == 1);
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_quadratic_forced_collisions_insert_and_find) {
+  cashash_t *map = cashash_oa_test_create_quadratic_with_constant_hash(17);
+
+  int keys[6];
+  int values[6];
+
+  ck_assert_ptr_nonnull(map);
+
+  for (size_t i = 0; i < 6; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 100;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  ck_assert(cashash_size(map) == 6);
+  ck_assert(cashash_bucket_count(map) == 17);
+
+  for (size_t i = 0; i < 6; i++) {
+    int *found = cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i])));
+
+    ck_assert_ptr_nonnull(found);
+    ck_assert_int_eq(*found, values[i]);
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_quadratic_forced_collisions_update_existing_key) {
+  cashash_t *map = cashash_oa_test_create_quadratic_with_constant_hash(17);
+
+  int key_a = 1;
+  int key_b = 2;
+  int key_c = 3;
+
+  int value_a = 100;
+  int value_b_old = 200;
+  int value_b_new = 999;
+  int value_c = 300;
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_a, sizeof(key_a)), &value_a));
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), &value_b_old));
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_c, sizeof(key_c)), &value_c));
+
+  ck_assert(cashash_size(map) == 3);
+
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), &value_b_new));
+
+  ck_assert(cashash_size(map) == 3);
+
+  int *found_a = cashash_find(map, CASHASH_KEY(&key_a, sizeof(key_a)));
+  int *found_b = cashash_find(map, CASHASH_KEY(&key_b, sizeof(key_b)));
+  int *found_c = cashash_find(map, CASHASH_KEY(&key_c, sizeof(key_c)));
+
+  ck_assert_ptr_nonnull(found_a);
+  ck_assert_ptr_nonnull(found_b);
+  ck_assert_ptr_nonnull(found_c);
+
+  ck_assert_int_eq(*found_a, 100);
+  ck_assert_int_eq(*found_b, 999);
+  ck_assert_int_eq(*found_c, 300);
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_quadratic_remove_from_probe_cluster_preserves_later_keys) {
+  cashash_t *map = cashash_oa_test_create_quadratic_with_constant_hash(17);
+
+  int keys[6];
+  int values[6];
+
+  ck_assert_ptr_nonnull(map);
+
+  for (size_t i = 0; i < 6; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 100;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  ck_assert(cashash_size(map) == 6);
+
+  ck_assert(cashash_remove(map, CASHASH_KEY(&keys[2], sizeof(keys[2]))));
+
+  ck_assert(cashash_size(map) == 5);
+  ck_assert_ptr_null(cashash_find(map, CASHASH_KEY(&keys[2], sizeof(keys[2]))));
+
+  for (size_t i = 0; i < 6; i++) {
+    if (i == 2) {
+      continue;
+    }
+
+    int *found = cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i])));
+
+    ck_assert_ptr_nonnull(found);
+    ck_assert_int_eq(*found, values[i]);
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_quadratic_reuses_deleted_slot) {
+  cashash_t *map = cashash_oa_test_create_quadratic_with_constant_hash(17);
+
+  int key_a = 1;
+  int key_b = 2;
+  int key_c = 3;
+  int key_d = 4;
+
+  int value_a = 100;
+  int value_b = 200;
+  int value_c = 300;
+  int value_d = 400;
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_a, sizeof(key_a)), &value_a));
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), &value_b));
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_c, sizeof(key_c)), &value_c));
+
+  ck_assert(cashash_remove(map, CASHASH_KEY(&key_b, sizeof(key_b))));
+
+  ck_assert(cashash_size(map) == 2);
+
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_d, sizeof(key_d)), &value_d));
+
+  ck_assert(cashash_size(map) == 3);
+
+  ck_assert_ptr_null(cashash_find(map, CASHASH_KEY(&key_b, sizeof(key_b))));
+
+  int *found_a = cashash_find(map, CASHASH_KEY(&key_a, sizeof(key_a)));
+  int *found_c = cashash_find(map, CASHASH_KEY(&key_c, sizeof(key_c)));
+  int *found_d = cashash_find(map, CASHASH_KEY(&key_d, sizeof(key_d)));
+
+  ck_assert_ptr_nonnull(found_a);
+  ck_assert_ptr_nonnull(found_c);
+  ck_assert_ptr_nonnull(found_d);
+
+  ck_assert_int_eq(*found_a, 100);
+  ck_assert_int_eq(*found_c, 300);
+  ck_assert_int_eq(*found_d, 400);
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_quadratic_growth_preserves_items) {
+  cashash_t *map = cashash_oa_test_create_quadratic_with_small_int_hash(17);
+
+  int keys[32];
+  int values[32];
+
+  ck_assert_ptr_nonnull(map);
+
+  size_t before_bucket_count = cashash_bucket_count(map);
+
+  for (size_t i = 0; i < 32; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 1000;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  ck_assert(cashash_bucket_count(map) > before_bucket_count);
+  ck_assert(cashash_size(map) == 32);
+
+  for (size_t i = 0; i < 32; i++) {
+    int *found = cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i])));
+
+    ck_assert_ptr_nonnull(found);
+    ck_assert_int_eq(*found, values[i]);
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_quadratic_clear_after_probe_cluster) {
+  cashash_t *map = cashash_oa_test_create_quadratic_with_constant_hash(17);
+
+  int keys[6];
+  int values[6];
+
+  ck_assert_ptr_nonnull(map);
+
+  for (size_t i = 0; i < 6; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 100;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  size_t bucket_count = cashash_bucket_count(map);
+
+  cashash_clear(map);
+
+  ck_assert(cashash_size(map) == 0);
+  ck_assert(cashash_bucket_count(map) == bucket_count);
+
+  for (size_t i = 0; i < 6; i++) {
+    ck_assert_ptr_null(
+        cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i]))));
+  }
+
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&keys[0], sizeof(keys[0])), &values[0]));
+
+  ck_assert(cashash_size(map) == 1);
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_double_hash_forced_collisions_insert_and_find) {
+  cashash_t *map = cashash_oa_test_create_double_hash_with_constant_hash(17);
+
+  int keys[8];
+  int values[8];
+
+  ck_assert_ptr_nonnull(map);
+
+  for (size_t i = 0; i < 8; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 100;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  ck_assert(cashash_size(map) == 8);
+  ck_assert(cashash_bucket_count(map) == 17);
+
+  for (size_t i = 0; i < 8; i++) {
+    int *found = cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i])));
+
+    ck_assert_ptr_nonnull(found);
+    ck_assert_int_eq(*found, values[i]);
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_double_hash_update_existing_key) {
+  cashash_t *map = cashash_oa_test_create_double_hash_with_constant_hash(17);
+
+  int key_a = 1;
+  int key_b = 2;
+  int key_c = 3;
+
+  int value_a = 100;
+  int value_b_old = 200;
+  int value_b_new = 999;
+  int value_c = 300;
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_a, sizeof(key_a)), &value_a));
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), &value_b_old));
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_c, sizeof(key_c)), &value_c));
+
+  ck_assert(cashash_size(map) == 3);
+
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), &value_b_new));
+
+  ck_assert(cashash_size(map) == 3);
+
+  int *found_a = cashash_find(map, CASHASH_KEY(&key_a, sizeof(key_a)));
+  int *found_b = cashash_find(map, CASHASH_KEY(&key_b, sizeof(key_b)));
+  int *found_c = cashash_find(map, CASHASH_KEY(&key_c, sizeof(key_c)));
+
+  ck_assert_ptr_nonnull(found_a);
+  ck_assert_ptr_nonnull(found_b);
+  ck_assert_ptr_nonnull(found_c);
+
+  ck_assert_int_eq(*found_a, 100);
+  ck_assert_int_eq(*found_b, 999);
+  ck_assert_int_eq(*found_c, 300);
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_double_hash_remove_preserves_later_keys) {
+  cashash_t *map = cashash_oa_test_create_double_hash_with_constant_hash(17);
+
+  int keys[8];
+  int values[8];
+
+  ck_assert_ptr_nonnull(map);
+
+  for (size_t i = 0; i < 8; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 100;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  ck_assert(cashash_size(map) == 8);
+
+  ck_assert(cashash_remove(map, CASHASH_KEY(&keys[3], sizeof(keys[3]))));
+
+  ck_assert(cashash_size(map) == 7);
+  ck_assert_ptr_null(cashash_find(map, CASHASH_KEY(&keys[3], sizeof(keys[3]))));
+
+  for (size_t i = 0; i < 8; i++) {
+    if (i == 3) {
+      continue;
+    }
+
+    int *found = cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i])));
+
+    ck_assert_ptr_nonnull(found);
+    ck_assert_int_eq(*found, values[i]);
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_double_hash_reuses_deleted_slot_on_same_probe_path) {
+  cashash_t *map = cashash_oa_test_create_double_hash_with_constant_hash(17);
+
+  int key_a = 1;
+  int key_b = 2;
+  int key_c = 3;
+
+  /*
+   * key_d has the same second-hash step as key_b modulo 17:
+   *
+   * key_b: 2 * 2 + 1 = 5
+   * key_d: 2 * 19 + 1 = 39, 39 % 17 = 5
+   *
+   * So key_d follows the same probe path as key_b and can reuse its tombstone.
+   */
+  int key_d = 19;
+
+  int value_a = 100;
+  int value_b = 200;
+  int value_c = 300;
+  int value_d = 400;
+
+  ck_assert_ptr_nonnull(map);
+
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_a, sizeof(key_a)), &value_a));
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), &value_b));
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_c, sizeof(key_c)), &value_c));
+
+  ck_assert(cashash_size(map) == 3);
+
+  ck_assert(cashash_remove(map, CASHASH_KEY(&key_b, sizeof(key_b))));
+
+  ck_assert(cashash_size(map) == 2);
+
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_d, sizeof(key_d)), &value_d));
+
+  ck_assert(cashash_size(map) == 3);
+
+  ck_assert_ptr_null(cashash_find(map, CASHASH_KEY(&key_b, sizeof(key_b))));
+
+  int *found_a = cashash_find(map, CASHASH_KEY(&key_a, sizeof(key_a)));
+  int *found_c = cashash_find(map, CASHASH_KEY(&key_c, sizeof(key_c)));
+  int *found_d = cashash_find(map, CASHASH_KEY(&key_d, sizeof(key_d)));
+
+  ck_assert_ptr_nonnull(found_a);
+  ck_assert_ptr_nonnull(found_c);
+  ck_assert_ptr_nonnull(found_d);
+
+  ck_assert_int_eq(*found_a, 100);
+  ck_assert_int_eq(*found_c, 300);
+  ck_assert_int_eq(*found_d, 400);
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_double_hash_growth_preserves_items) {
+  cashash_t *map = cashash_oa_test_create_double_hash_with_constant_hash(8);
+
+  int keys[24];
+  int values[24];
+
+  ck_assert_ptr_nonnull(map);
+
+  size_t before_bucket_count = cashash_bucket_count(map);
+
+  for (size_t i = 0; i < 24; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 1000;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  ck_assert(cashash_bucket_count(map) > before_bucket_count);
+  ck_assert(cashash_size(map) == 24);
+
+  for (size_t i = 0; i < 24; i++) {
+    int *found = cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i])));
+
+    ck_assert_ptr_nonnull(found);
+    ck_assert_int_eq(*found, values[i]);
+  }
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_double_hash_clear_after_probe_cluster) {
+  cashash_t *map = cashash_oa_test_create_double_hash_with_constant_hash(17);
+
+  int keys[8];
+  int values[8];
+
+  ck_assert_ptr_nonnull(map);
+
+  for (size_t i = 0; i < 8; i++) {
+    keys[i] = (int)i;
+    values[i] = (int)i + 100;
+
+    ck_assert(cashash_insert(map, CASHASH_KEY(&keys[i], sizeof(keys[i])),
+                             &values[i]));
+  }
+
+  size_t bucket_count = cashash_bucket_count(map);
+
+  cashash_clear(map);
+
+  ck_assert(cashash_size(map) == 0);
+  ck_assert(cashash_bucket_count(map) == bucket_count);
+
+  for (size_t i = 0; i < 8; i++) {
+    ck_assert_ptr_null(
+        cashash_find(map, CASHASH_KEY(&keys[i], sizeof(keys[i]))));
+  }
+
+  ck_assert(
+      cashash_insert(map, CASHASH_KEY(&keys[0], sizeof(keys[0])), &values[0]));
+
+  ck_assert(cashash_size(map) == 1);
+
+  cashash_destroy(map);
+}
+END_TEST
+
+START_TEST(test_oa_double_hash_second_hash_function_is_called) {
+  cashash_t *map =
+      cashash_oa_test_create_double_hash_with_counting_second_hash(17);
+
+  int key_a = 1;
+  int key_b = 2;
+  int value_a = 100;
+  int value_b = 200;
+
+  ck_assert_ptr_nonnull(map);
+
+  cashash_oa_second_hash_call_count = 0;
+
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_a, sizeof(key_a)), &value_a));
+  ck_assert(cashash_insert(map, CASHASH_KEY(&key_b, sizeof(key_b)), &value_b));
+
+  ck_assert(cashash_oa_second_hash_call_count > 0);
+
+  size_t call_count_after_insert = cashash_oa_second_hash_call_count;
+
+  ck_assert_ptr_nonnull(cashash_find(map, CASHASH_KEY(&key_a, sizeof(key_a))));
+  ck_assert_ptr_nonnull(cashash_find(map, CASHASH_KEY(&key_b, sizeof(key_b))));
+
+  ck_assert(cashash_oa_second_hash_call_count > call_count_after_insert);
+
+  cashash_destroy(map);
+}
+END_TEST
+
 static Suite *cashash_oa_suite(void) {
   Suite *suite = suite_create("cashash_open_addressing");
   TCase *core = tcase_create("core");
+  TCase *linear = tcase_create("linear");
+  TCase *quadratic = tcase_create("quadratic");
+  TCase *double_hash = tcase_create("double_hash");
 
   tcase_add_test(core, test_oa_create_destroy_default);
   tcase_add_test(core, test_oa_create_invalid_arguments);
@@ -467,7 +1335,40 @@ static Suite *cashash_oa_suite(void) {
   tcase_add_test(core, test_oa_mutable_pointer_value);
   tcase_add_test(core, test_oa_null_arguments);
 
+  tcase_add_test(linear, test_oa_linear_forced_collisions_insert_and_find);
+  tcase_add_test(linear, test_oa_linear_forced_collisions_update_existing_key);
+  tcase_add_test(linear,
+                 test_oa_linear_remove_from_probe_cluster_preserves_later_keys);
+  tcase_add_test(linear, test_oa_linear_reuses_deleted_slot);
+  tcase_add_test(linear, test_oa_linear_growth_preserves_probe_cluster);
+  tcase_add_test(linear, test_oa_linear_clear_after_probe_cluster);
+
+  tcase_add_test(quadratic,
+                 test_oa_quadratic_forced_collisions_insert_and_find);
+  tcase_add_test(quadratic,
+                 test_oa_quadratic_forced_collisions_update_existing_key);
+  tcase_add_test(
+      quadratic,
+      test_oa_quadratic_remove_from_probe_cluster_preserves_later_keys);
+  tcase_add_test(quadratic, test_oa_quadratic_reuses_deleted_slot);
+  tcase_add_test(quadratic, test_oa_quadratic_growth_preserves_items);
+  tcase_add_test(quadratic, test_oa_quadratic_clear_after_probe_cluster);
+
+  tcase_add_test(double_hash,
+                 test_oa_double_hash_forced_collisions_insert_and_find);
+  tcase_add_test(double_hash, test_oa_double_hash_update_existing_key);
+  tcase_add_test(double_hash, test_oa_double_hash_remove_preserves_later_keys);
+  tcase_add_test(double_hash,
+                 test_oa_double_hash_reuses_deleted_slot_on_same_probe_path);
+  tcase_add_test(double_hash, test_oa_double_hash_growth_preserves_items);
+  tcase_add_test(double_hash, test_oa_double_hash_clear_after_probe_cluster);
+  tcase_add_test(double_hash,
+                 test_oa_double_hash_second_hash_function_is_called);
+
   suite_add_tcase(suite, core);
+  suite_add_tcase(suite, linear);
+  suite_add_tcase(suite, quadratic);
+  suite_add_tcase(suite, double_hash);
 
   return suite;
 }

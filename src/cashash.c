@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+cashash_t *cashash_create(size_t bucket_count) {
+  return cashash_create_chain(bucket_count);
+}
+
 cashash_t *cashash_create_chain(size_t bucket_count) {
   cashash_hash_strategy_t strategy = CASHASH_HASH_STRATEGY_FNV1A;
   cashash_strategy_option_t options;

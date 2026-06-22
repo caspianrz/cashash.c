@@ -121,7 +121,8 @@ if(CAS_BUILD_TESTS)
 		"test_cashash_chain:tests/test_cashash_chain.c"
 		"test_cashash_oa:tests/test_cashash_oa.c"
 		"test_cashash_hash:tests/test_cashash_hash.c"
-		# "test_cashash_iter:tests/test_cashash_iter.c"
+		"test_cashash_iter:tests/test_cashash_iter.c"
+		"test_cashash_iter_oa:tests/test_cashash_iter_oa.c"
 	)
 
 	foreach(test ${tests})
