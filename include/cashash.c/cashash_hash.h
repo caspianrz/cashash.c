@@ -33,6 +33,63 @@
  */
 
 /**
+ * @brief Hash function callback type.
+ *
+ * Computes a hash value for `key_len` bytes starting at `key`.
+ *
+ * The variadic arguments are reserved for strategy-specific options, such as
+ * an xxHash seed.
+ *
+ * @param key Pointer to key bytes.
+ * @param len Number of bytes in the key.
+ *
+ * @return Hash value for the provided key bytes.
+ */
+typedef size_t (*cashash_hash_fn)(const void *key, const size_t len, ...);
+
+/**
+ * @brief Key equality callback type.
+ *
+ * Compares exactly `len` bytes from `a` and `b`.
+ *
+ * Implementations should be binary-safe and should not depend on
+ * null-terminated strings.
+ *
+ * @param a First key pointer.
+ * @param b Second key pointer.
+ * @param len Number of bytes to compare.
+ *
+ * @return true if the keys are equal.
+ * @return false otherwise.
+ */
+typedef bool (*cashash_equal_fn)(const void *a, const void *b, size_t len);
+
+/**
+ * @brief Key copy callback type.
+ *
+ * Creates an owned copy of `len` bytes from `key`.
+ *
+ * The returned pointer is stored internally by the hash table and later passed
+ * to the configured cashash_key_destroy_fn.
+ *
+ * @param key Pointer to key bytes to copy.
+ * @param len Number of bytes to copy.
+ *
+ * @return Pointer to copied key memory on success.
+ * @return NULL on allocation failure.
+ */
+typedef void *(*cashash_key_copy_fn)(const void *key, size_t len);
+
+/**
+ * @brief Key destroy callback type.
+ *
+ * Destroys a key previously returned by cashash_key_copy_fn.
+ *
+ * @param key Copied key pointer to destroy.
+ */
+typedef void (*cashash_key_destroy_fn)(const void *key);
+
+/**
  * @brief Hash a null-terminated string using FNV-1a.
  *
  * This function hashes bytes from `key` until the first `'\0'` byte.
@@ -83,7 +140,7 @@ size_t cashash_hash_fnv1a_bytes(const void *data, const size_t len, ...);
  *
  * @note This is intended to be used as the default cashash_equal_fn callback.
  */
-bool cashash_equal_fnv1a_bytes(const void *a, const void *b, const size_t len);
+bool cashash_equal_bytes(const void *a, const void *b, const size_t len);
 
 /**
  * @brief Copy a byte key.
@@ -103,7 +160,7 @@ bool cashash_equal_fnv1a_bytes(const void *a, const void *b, const size_t len);
  * @warning The copied key is not guaranteed to be null-terminated. It should be
  * treated as raw bytes.
  */
-void *cashash_copy_fnv1a_bytes(const void *key, const size_t len);
+void *cashash_copy_bytes(const void *key, const size_t len);
 
 /**
  * @brief Destroy a copied byte key.
@@ -112,7 +169,7 @@ void *cashash_copy_fnv1a_bytes(const void *key, const size_t len);
  *
  * @param key Copied key pointer to destroy. Passing NULL is allowed.
  */
-void cashash_key_destroy_fnv1a_bytes(const void *key);
+void cashash_key_destroy_bytes(const void *key);
 
 #ifdef CASHASH_USE_XXHASH
 

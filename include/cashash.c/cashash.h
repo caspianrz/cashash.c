@@ -3,6 +3,9 @@
 #ifndef CASHASH_C_H
 #define CASHASH_C_H
 
+#include <cashash.c/cashash.h>
+#include <cashash.c/cashash_type.h>
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -15,389 +18,191 @@
  *
  * - generic byte keys
  * - generic `void *` values
- * - separate chaining
+ * - separate-chaining and open-addressing backends
  * - FNV-1a hashing by default
  * - optional xxHash support
  * - automatic dynamic bucket growth
  *
- * Keys are passed as a pointer plus an explicit length. This makes the table
- * usable with strings, binary buffers, integers, structs, and other fixed-size
- * key types.
+ * Keys are passed as a pointer plus an explicit length using
+ * cashash_key_datum_t. This makes the table usable with strings, binary
+ * buffers, integers, structs, and other fixed-size key types.
  *
  * The table copies keys internally. The caller may free or modify the original
  * key after insertion.
  *
  * The table stores generic `void *` values as-is. It does not copy, destroy,
  * or otherwise manage inserted values.
- *
- * As new key-value pairs are inserted, the table may allocate a larger bucket
- * array and rehash existing entries to keep collision chains shorter.
  */
 
 /**
- * @defgroup cashash Cashash
- * @brief Generic byte-key hash table API.
+ * @brief Create a new hash table using the default backend.
  *
- * @{
- */
-
-/**
- * @typedef cashash_node_t
- * @brief Alias for the internal hash table node type.
- */
-typedef struct cashash_node_s cashash_node_t;
-
-/**
- * @brief Opaque hash table type.
+ * This function is kept for backward compatibility with older versions of
+ * cashash.c. It creates a separate-chaining hash table using the default
+ * configuration.
  *
- * The internal representation is hidden from users of the library.
- *
- * Create a table with cashash_create(), cashash_create_with_strategy(), or
- * cashash_create_with_config().
- *
- * Release a table with cashash_destroy().
- */
-typedef struct cashash_s cashash_t;
-
-/**
- * @brief Built-in hash strategy selector.
- *
- * This enum is used by cashash_create_with_strategy() and stored in
- * cashash_config_t so internal operations know which hash strategy is active.
- */
-typedef enum {
-  /**
-   * @brief No built-in strategy.
-   *
-   * Intended for fully custom configurations passed to
-   * cashash_create_with_config().
-   */
-  CASHASH_HASH_STRATEGY_NONE,
-
-  /**
-   * @brief Use the built-in FNV-1a byte hash.
-   */
-  CASHASH_HASH_STRATEGY_FNV1A,
-
-#ifdef CASHASH_USE_XXHASH
-  /**
-   * @brief Use the built-in XXH3 byte hash.
-   *
-   * Available only when CASHASH_USE_XXHASH is enabled.
-   */
-  CASHASH_HASH_STRATEGY_XXH3,
-
-  /**
-   * @brief Use the built-in XXH64 byte hash.
-   *
-   * Available only when CASHASH_USE_XXHASH is enabled.
-   */
-  CASHASH_HASH_STRATEGY_XXH64,
-#endif
-} cashash_hash_strategy_t;
-
-/**
- * @brief Represents a generic key datum used by a cashash table.
- *
- * A key datum is a pointer-length pair used to describe arbitrary key data.
- * The `data` pointer is `const` because hash table operations should not modify
- * key bytes supplied by the caller.
- *
- * @note This struct does not imply ownership. Whether the hash table copies,
- * borrows, or frees the pointed-to key data depends on the table configuration
- * and API used.
- */
-typedef struct cashash_key_datum_s {
-  /**
-   * @brief Pointer to the key data.
-   *
-   * May point to any binary or user-defined key data. The pointed-to data
-   * should remain valid for the duration required by the API or table
-   * configuration.
-   */
-  const void *data;
-
-  /**
-   * @brief Length of the key data in bytes.
-   *
-   * For string keys, this should usually exclude the terminating `'\0'`.
-   */
-  size_t length;
-} cashash_key_datum_t;
-
-/**
- * @brief Represents a key-value pair in a cashash table.
- *
- * This type groups a key datum and a value datum together. It is useful for
- * iterator APIs, foreach callbacks, insertion helpers, and APIs that return or
- * operate on whole hash table entries.
- *
- * @note The pair itself does not imply ownership of either `key.data` or
- * `value.data`.
- */
-typedef struct cashash_pair_s {
-  /**
-   * @brief Key component of the pair.
-   */
-  cashash_key_datum_t key;
-
-  /**
-   * @brief Value component of the pair.
-   */
-  void *value;
-} cashash_pair_t;
-
-/**
- * @brief Hash function callback type.
- *
- * Computes a hash value for `key_len` bytes starting at `key`.
- *
- * The variadic arguments are reserved for strategy-specific options, such as
- * an xxHash seed.
- *
- * @param key Pointer to key bytes.
- * @param len Number of bytes in the key.
- *
- * @return Hash value for the provided key bytes.
- */
-typedef size_t (*cashash_hash_fn)(const void *key, const size_t len, ...);
-
-/**
- * @brief Key equality callback type.
- *
- * Compares exactly `len` bytes from `a` and `b`.
- *
- * Implementations should be binary-safe and should not depend on
- * null-terminated strings.
- *
- * @param a First key pointer.
- * @param b Second key pointer.
- * @param len Number of bytes to compare.
- *
- * @return true if the keys are equal.
- * @return false otherwise.
- */
-typedef bool (*cashash_equal_fn)(const void *a, const void *b, size_t len);
-
-/**
- * @brief Key copy callback type.
- *
- * Creates an owned copy of `len` bytes from `key`.
- *
- * The returned pointer is stored internally by the hash table and later passed
- * to the configured cashash_key_destroy_fn.
- *
- * @param key Pointer to key bytes to copy.
- * @param len Number of bytes to copy.
- *
- * @return Pointer to copied key memory on success.
- * @return NULL on allocation failure.
- */
-typedef void *(*cashash_key_copy_fn)(const void *key, size_t len);
-
-/**
- * @brief Key destroy callback type.
- *
- * Destroys a key previously returned by cashash_key_copy_fn.
- *
- * @param key Copied key pointer to destroy.
- */
-typedef void (*cashash_key_destroy_fn)(const void *key);
-
-/**
- * @brief Hash table configuration.
- *
- * This structure allows callers to provide custom hashing, equality, key copy,
- * and key destroy behavior.
- *
- * For the default byte-key behavior, use cashash_create().
- */
-typedef struct {
-  /**
-   * @brief Hash strategy identifier.
-   *
-   * Use CASHASH_HASH_STRATEGY_NONE for fully custom callbacks.
-   */
-  cashash_hash_strategy_t strategy;
-
-  /**
-   * @brief Function used to hash keys.
-   */
-  cashash_hash_fn hash;
-
-  /**
-   * @brief Function used to compare keys.
-   */
-  cashash_equal_fn equal;
-
-  /**
-   * @brief Function used to copy keys before storing them.
-   */
-  cashash_key_copy_fn copy_key;
-
-  /**
-   * @brief Function used to destroy copied keys.
-   */
-  cashash_key_destroy_fn destroy_key;
-} cashash_config_t;
-
-/**
- * @brief Strategy-specific hash options.
- *
- * This structure stores optional settings for built-in hash strategies.
- *
- * `used` indicates whether strategy-specific options should be used.
- */
-typedef struct {
-  /**
-   * @brief Whether strategy-specific options are enabled.
-   */
-  bool used;
-
-#ifdef CASHASH_USE_XXHASH
-  /**
-   * @brief Options for the XXH64 strategy.
-   */
-  struct {
-    /**
-     * @brief Seed passed to XXH64.
-     */
-    uint64_t seed;
-  } xxh64;
-#endif
-} cashash_strategy_option_t;
-
-/**
- * @struct cashash_node_s
- * @brief Internal hash table node.
- *
- * Stores one key-value pair inside a bucket chain.
- */
-struct cashash_node_s {
-  /**
-   * @brief Next node in the bucket chain.
-   */
-  struct cashash_node_s *next;
-
-  /**
-   * @brief Cached hash of the key.
-   */
-  size_t hash;
-
-  /**
-   * @brief Key datum for this entry.
-   */
-  cashash_key_datum_t key;
-
-  /**
-   * @brief Value pointer for this entry.
-   */
-  void *value;
-};
-
-/**
- * @struct cashash_s
- * @brief Hash table instance.
- *
- * Stores the bucket array, entry count, and configuration used by the table.
- */
-struct cashash_s {
-  /**
-   * @brief Array of bucket chains.
-   */
-  cashash_node_t **buckets;
-
-  /**
-   * @brief Number of buckets in the table.
-   */
-  size_t bucket_count;
-
-  /**
-   * @brief Number of entries stored in the table.
-   */
-  size_t size;
-
-  /**
-   * @brief Hash table behavior configuration.
-   */
-  cashash_config_t config;
-
-  /**
-   * @brief Strategy-specific options.
-   */
-  cashash_strategy_option_t option;
-};
-
-/**
- * @brief Create a new hash table using the default strategy.
- *
- * Creates a hash table using the default FNV-1a byte-key configuration.
+ * New code may prefer calling cashash_create_chain() or
+ * cashash_create_open_addressing() explicitly to make the selected backend
+ * clear.
  *
  * @param bucket_count Initial number of buckets to allocate.
  *
  * @return A pointer to a new hash table on success.
  * @return NULL if allocation fails or if `bucket_count` is 0.
  *
- * @note The table may grow dynamically as entries are inserted.
- * @note A larger initial bucket count usually reduces early collisions but
- * uses more memory.
- * @note A bucket count of 1 is valid, but all initial keys collide into one
- * chain until growth occurs.
+ * @note This function currently defaults to the separate-chaining backend.
+ * @note This is equivalent to calling cashash_create_chain(bucket_count).
  */
 cashash_t *cashash_create(size_t bucket_count);
 
+/* -------------------------------------------------------------------------- */
+/* Open-addressing creation API */
+/* -------------------------------------------------------------------------- */
+
 /**
- * @brief Create a new hash table using a built-in hash strategy.
+ * @brief Create an open-addressing hash table using the default strategy.
  *
- * Creates a hash table using one of the built-in hash strategies.
+ * Uses FNV-1a hashing and linear probing by default.
+ *
+ * @param bucket_count Initial number of buckets.
+ *
+ * @return New hash table, or `NULL` on failure.
+ */
+cashash_t *cashash_create_open_addressing(size_t bucket_count);
+
+/**
+ * @brief Create an open-addressing hash table using a hash and probing
+ * strategy.
+ *
+ * @param bucket_count Initial number of buckets.
+ * @param strategy Hash strategy to use.
+ * @param option Strategy-specific options.
+ * @param probe_strategy Open-addressing probing strategy.
+ *
+ * @return New hash table, or `NULL` on failure.
+ */
+cashash_t *cashash_create_open_addressing_with_strategy(
+    size_t bucket_count, cashash_hash_strategy_t strategy,
+    cashash_strategy_option_t option,
+    cashash_oa_probe_strategy_t probe_strategy);
+
+/**
+ * @brief Create an open-addressing hash table using a custom config.
+ *
+ * @param bucket_count Initial number of buckets.
+ * @param config Hash table behavior configuration.
+ * @param option Strategy-specific options.
+ * @param probe_strategy Open-addressing probing strategy.
+ *
+ * @return New hash table, or `NULL` on failure.
+ */
+cashash_t *cashash_create_open_addressing_with_config(
+    size_t bucket_count, cashash_config_t config,
+    cashash_strategy_option_t option,
+    cashash_oa_probe_strategy_t probe_strategy);
+
+/**
+ * @brief Create an open-addressing hash table using custom double hashing.
+ *
+ * Creates a table using CASHASH_OA_PROBE_DOUBLE_HASHING and stores the given
+ * second hash function.
+ *
+ * @param bucket_count Initial number of buckets.
+ * @param strategy Hash strategy to use.
+ * @param option Strategy-specific options.
+ * @param second_hash Second hash function.
+ * @param second_hash_user_data User data passed to the second hash function.
+ *
+ * @return New hash table, or `NULL` on failure.
+ */
+cashash_t *cashash_create_open_addressing_with_double_hash(
+    size_t bucket_count, cashash_hash_strategy_t strategy,
+    cashash_strategy_option_t option, cashash_hash_fn second_hash,
+    void *second_hash_user_data);
+
+/**
+ * @brief Create an open-addressing hash table using custom config and double
+ * hashing.
+ *
+ * Creates a table using CASHASH_OA_PROBE_DOUBLE_HASHING and stores the given
+ * second hash function.
+ *
+ * @param bucket_count Initial number of buckets.
+ * @param config Hash table behavior configuration.
+ * @param option Strategy-specific options.
+ * @param second_hash Second hash function.
+ * @param second_hash_user_data User data passed to the second hash function.
+ *
+ * @return New hash table, or `NULL` on failure.
+ */
+cashash_t *cashash_create_open_addressing_with_config_and_double_hash(
+    size_t bucket_count, cashash_config_t config,
+    cashash_strategy_option_t option, cashash_hash_fn second_hash,
+    void *second_hash_user_data);
+
+/* -------------------------------------------------------------------------- */
+/* Separate-chaining creation API */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * @brief Create a separate-chaining hash table using the default strategy.
+ *
+ * Creates a hash table using the default FNV-1a byte-key configuration.
+ *
+ * @param bucket_count Initial number of buckets to allocate.
+ *
+ * @return New hash table, or `NULL` on failure.
+ */
+cashash_t *cashash_create_chain(size_t bucket_count);
+
+/**
+ * @brief Create a separate-chaining hash table using a built-in hash strategy.
  *
  * @param bucket_count Initial number of buckets to allocate.
  * @param strategy Built-in hash strategy to use.
  * @param option Strategy-specific options.
  *
- * @return A pointer to a new hash table on success.
- * @return NULL if allocation fails, if `bucket_count` is 0, or if `strategy`
- * is invalid.
+ * @return New hash table, or `NULL` on failure.
  */
-cashash_t *cashash_create_with_strategy(size_t bucket_count,
-                                        cashash_hash_strategy_t strategy,
-                                        cashash_strategy_option_t option);
+cashash_t *cashash_create_chain_with_strategy(size_t bucket_count,
+                                              cashash_hash_strategy_t strategy,
+                                              cashash_strategy_option_t option);
 
 /**
- * @brief Create a new hash table using a custom configuration.
+ * @brief Create a separate-chaining hash table using a custom configuration.
  *
- * Creates a hash table with caller-provided hash, equality, key copy, and key
+ * Creates a table with caller-provided hash, equality, key copy, and key
  * destroy functions.
  *
  * @param bucket_count Initial number of buckets to allocate.
  * @param config Hash table configuration.
  * @param option Strategy-specific options.
  *
- * @return A pointer to a new hash table on success.
- * @return NULL if allocation fails, if `bucket_count` is 0, or if any required
- * callback in `config` is NULL.
- *
- * @warning Custom callbacks must be compatible with each other. The hash and
- * equality functions should operate on the same key representation.
+ * @return New hash table, or `NULL` on failure.
  */
-cashash_t *cashash_create_with_config(size_t bucket_count,
-                                      cashash_config_t config,
-                                      cashash_strategy_option_t option);
+cashash_t *cashash_create_chain_with_config(size_t bucket_count,
+                                            cashash_config_t config,
+                                            cashash_strategy_option_t option);
+
+/* -------------------------------------------------------------------------- */
+/* Common table API */
+/* -------------------------------------------------------------------------- */
 
 /**
  * @brief Insert or update a key-value pair.
  *
- * Inserts `key` with the given `value`. If the key already exists, its value
- * is replaced and the table size does not increase.
+ * Inserts `key` with the given value pointer. If the key already exists, its
+ * value pointer is replaced and the table size does not increase.
  *
  * The key is copied internally using the configured key copy function.
  *
  * @param table Hash table.
- * @param key datum to insert.
- * @param value pointer to insert.
+ * @param key Key datum to insert.
+ * @param data Value pointer to store.
  *
- * @return true if insertion or update succeeds.
- * @return false if `table` is NULL, `key` is NULL, or allocation fails.
+ * @return `true` if insertion or update succeeds.
+ * @return `false` if `table` is NULL, `key.data` is NULL, `key.length` is 0,
+ * or allocation fails.
  *
  * @note The table stores the value pointer as-is. It does not copy the value.
  * @note Keys may contain embedded `'\0'` bytes.
@@ -408,16 +213,15 @@ bool cashash_insert(cashash_t *table, const cashash_key_datum_t key,
 /**
  * @brief Find a value by key.
  *
- * Searches the table for a key matching exactly `key_len` bytes from `key`.
+ * Searches the table for a key that has the same bytes and length as `key`.
  *
  * @param table Hash table.
- * @param key datum contains key and it's size.
- * @param value pointer which fills datum with value and it's size if found.
+ * @param key Key datum to search for.
  *
- * @return value pointer if key is found.
- * @return NULL if key is not found, or if `table` or `key` is NULL.
+ * @return Stored value pointer if the key is found.
+ * @return `NULL` if the key is not found, or if `table` or `key.data` is NULL.
  *
- * @warning Since NULL is also a valid `void *` value, this function cannot
+ * @warning Since `NULL` is also a valid `void *` value, this function cannot
  * distinguish between "key not found" and "key found with NULL value".
  */
 void *cashash_find(const cashash_t *table, const cashash_key_datum_t key);
@@ -427,17 +231,17 @@ void *cashash_find(const cashash_t *table, const cashash_key_datum_t key);
  *
  * Searches for `key` and removes the matching entry if it exists.
  *
- * This function frees the internally copied key and the internal table node,
- * but it does not free the stored value pointer.
+ * This function frees the internally copied key, but it does not free the
+ * stored value pointer.
  *
  * @param table Hash table.
- * @param key datum for removal.
+ * @param key Key datum to remove.
  *
- * @return true if the key was found and removed.
- * @return false if the key was not found, or if `table` or `key` is NULL.
+ * @return `true` if the key was found and removed.
+ * @return `false` if the key was not found, or if `table` or `key.data` is
+ * NULL.
  *
- * @note The table does not own inserted values, so the caller is responsible
- * for freeing or otherwise managing the value if needed.
+ * @note The table does not own inserted values.
  * @note Removing a key decreases cashash_size() by 1.
  */
 bool cashash_remove(cashash_t *table, const cashash_key_datum_t key);
@@ -448,22 +252,20 @@ bool cashash_remove(cashash_t *table, const cashash_key_datum_t key);
  * Clears every key-value pair from the table while keeping the table itself
  * allocated and reusable.
  *
- * This function frees all internally copied keys and internal table nodes,
- * but it does not free any stored value pointers.
+ * This function frees all internally copied keys, but it does not free stored
+ * value pointers.
  *
  * @param table Hash table to clear. Passing NULL is allowed.
  *
- * @note The bucket array remains allocated.
  * @note The current bucket count is unchanged.
  * @note After clearing, cashash_size() returns 0.
- * @note New entries may be inserted into the table after calling this function.
  */
 void cashash_clear(cashash_t *table);
 
 /**
  * @brief Destroy a hash table.
  *
- * Frees all internal nodes, copied keys, bucket storage, and the table itself.
+ * Frees all copied keys, internal storage, and the table itself.
  *
  * @param table Hash table to destroy. Passing NULL is allowed.
  *
@@ -473,29 +275,26 @@ void cashash_clear(cashash_t *table);
 void cashash_destroy(cashash_t *table);
 
 /**
- * @brief Get the number of stored key-value pairs.
+ * @brief Get the number of key-value pairs stored in the hash table.
  *
  * @param table Hash table.
  *
- * @return Number of key-value pairs in the table.
+ * @return Number of entries in the table.
  * @return 0 if `table` is NULL.
  */
 size_t cashash_size(const cashash_t *table);
 
 /**
- * @brief Get the current bucket count.
+ * @brief Get the current number of buckets/slots in the hash table.
+ *
+ * For separate-chaining tables, this returns the number of bucket chains.
+ * For open-addressing tables, this returns the number of entry slots.
  *
  * @param table Hash table.
  *
- * @return Current number of buckets.
+ * @return Current bucket/slot count.
  * @return 0 if `table` is NULL.
- *
- * @note The bucket count may increase automatically when dynamic growth occurs.
  */
 size_t cashash_bucket_count(const cashash_t *table);
 
-/**
- * @}
- */
-
-#endif
+#endif /* CASHASH_C_H */

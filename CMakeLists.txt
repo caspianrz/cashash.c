@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(cashash.c
-	VERSION 0.5.0
+	VERSION 0.6.0
 	DESCRIPTION "A small C hashing library."
 	LANGUAGES C
 )
@@ -23,7 +23,7 @@ include(FetchContent)
 
 set(cashash_libraries "")
 set(cashash_defines "")
-set(cashash_sources "src/cashash.c" "src/cashash_hash.c" "src/cashash_iter.c")
+file(GLOB cashash_sources "src/*.c")
 
 if(CAS_USE_XXHASH)
 find_package(xxHash CONFIG QUIET)
@@ -118,9 +118,11 @@ if(CAS_BUILD_TESTS)
     enable_testing()
 
 	set(tests
-		"test_cashash:tests/test_cashash.c"
+		"test_cashash_chain:tests/test_cashash_chain.c"
+		"test_cashash_oa:tests/test_cashash_oa.c"
 		"test_cashash_hash:tests/test_cashash_hash.c"
 		"test_cashash_iter:tests/test_cashash_iter.c"
+		"test_cashash_iter_oa:tests/test_cashash_iter_oa.c"
 	)
 
 	foreach(test ${tests})

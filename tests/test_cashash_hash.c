@@ -88,44 +88,44 @@ START_TEST(test_fnv1a_long_data_changes_when_byte_changes) {
 }
 END_TEST
 
-START_TEST(test_equal_fnv1a_bytes_same_data) {
+START_TEST(test_equal_bytes_same_data) {
   const char a[] = {'k', 'e', 'y', '\0', 'x'};
   const char b[] = {'k', 'e', 'y', '\0', 'x'};
 
-  ck_assert(cashash_equal_fnv1a_bytes(a, b, sizeof(a)));
+  ck_assert(cashash_equal_bytes(a, b, sizeof(a)));
 }
 END_TEST
 
-START_TEST(test_equal_fnv1a_bytes_different_data) {
+START_TEST(test_equal_bytes_different_data) {
   const char a[] = {'k', 'e', 'y', '\0', 'x'};
   const char b[] = {'k', 'e', 'y', '\0', 'y'};
 
-  ck_assert(!cashash_equal_fnv1a_bytes(a, b, sizeof(a)));
+  ck_assert(!cashash_equal_bytes(a, b, sizeof(a)));
 }
 END_TEST
 
-START_TEST(test_equal_fnv1a_bytes_zero_length) {
+START_TEST(test_equal_bytes_zero_length) {
   const char a[] = {'a'};
   const char b[] = {'b'};
 
-  ck_assert(cashash_equal_fnv1a_bytes(a, b, 0));
+  ck_assert(cashash_equal_bytes(a, b, 0));
 }
 END_TEST
 
-START_TEST(test_copy_fnv1a_bytes_copies_exact_bytes) {
+START_TEST(test_copy_bytes_copies_exact_bytes) {
   const char key[] = {'a', 'b', '\0', 'c', 'd'};
-  void *copy = cashash_copy_fnv1a_bytes(key, sizeof(key));
+  void *copy = cashash_copy_bytes(key, sizeof(key));
 
   ck_assert_ptr_nonnull(copy);
   ck_assert_int_eq(memcmp(copy, key, sizeof(key)), 0);
 
-  cashash_key_destroy_fnv1a_bytes(copy);
+  cashash_key_destroy_bytes(copy);
 }
 END_TEST
 
-START_TEST(test_copy_fnv1a_bytes_returns_independent_copy) {
+START_TEST(test_copy_bytes_returns_independent_copy) {
   char key[] = {'a', 'b', '\0', 'c', 'd'};
-  void *copy = cashash_copy_fnv1a_bytes(key, sizeof(key));
+  void *copy = cashash_copy_bytes(key, sizeof(key));
 
   ck_assert_ptr_nonnull(copy);
 
@@ -137,11 +137,11 @@ START_TEST(test_copy_fnv1a_bytes_returns_independent_copy) {
   ck_assert(((const char *)copy)[3] == 'c');
   ck_assert(((const char *)copy)[4] == 'd');
 
-  cashash_key_destroy_fnv1a_bytes(copy);
+  cashash_key_destroy_bytes(copy);
 }
 END_TEST
 
-START_TEST(test_copy_fnv1a_bytes_long_key) {
+START_TEST(test_copy_bytes_long_key) {
   unsigned char key[4096];
   void *copy;
   size_t i;
@@ -150,17 +150,17 @@ START_TEST(test_copy_fnv1a_bytes_long_key) {
     key[i] = (unsigned char)((i * 31) % 255);
   }
 
-  copy = cashash_copy_fnv1a_bytes(key, sizeof(key));
+  copy = cashash_copy_bytes(key, sizeof(key));
 
   ck_assert_ptr_nonnull(copy);
   ck_assert_int_eq(memcmp(copy, key, sizeof(key)), 0);
 
-  cashash_key_destroy_fnv1a_bytes(copy);
+  cashash_key_destroy_bytes(copy);
 }
 END_TEST
 
-START_TEST(test_key_destroy_fnv1a_bytes_accepts_null) {
-  cashash_key_destroy_fnv1a_bytes(NULL);
+START_TEST(test_key_destroy_bytes_accepts_null) {
+  cashash_key_destroy_bytes(NULL);
 }
 END_TEST
 
@@ -234,14 +234,14 @@ static Suite *cashash_hash_suite(void) {
   tcase_add_test(core, test_fnv1a_long_data_is_deterministic);
   tcase_add_test(core, test_fnv1a_long_data_changes_when_byte_changes);
 
-  tcase_add_test(core, test_equal_fnv1a_bytes_same_data);
-  tcase_add_test(core, test_equal_fnv1a_bytes_different_data);
-  tcase_add_test(core, test_equal_fnv1a_bytes_zero_length);
+  tcase_add_test(core, test_equal_bytes_same_data);
+  tcase_add_test(core, test_equal_bytes_different_data);
+  tcase_add_test(core, test_equal_bytes_zero_length);
 
-  tcase_add_test(core, test_copy_fnv1a_bytes_copies_exact_bytes);
-  tcase_add_test(core, test_copy_fnv1a_bytes_returns_independent_copy);
-  tcase_add_test(core, test_copy_fnv1a_bytes_long_key);
-  tcase_add_test(core, test_key_destroy_fnv1a_bytes_accepts_null);
+  tcase_add_test(core, test_copy_bytes_copies_exact_bytes);
+  tcase_add_test(core, test_copy_bytes_returns_independent_copy);
+  tcase_add_test(core, test_copy_bytes_long_key);
+  tcase_add_test(core, test_key_destroy_bytes_accepts_null);
 
 #ifdef CASHASH_USE_XXHASH
   tcase_add_test(core, test_xxh3_bytes_is_deterministic);

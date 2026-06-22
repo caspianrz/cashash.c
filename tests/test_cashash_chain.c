@@ -25,7 +25,7 @@ static const char *cashash_test_find_str(const cashash_t *map,
 }
 
 START_TEST(test_create_destroy) {
-  cashash_t *map = cashash_create(128);
+  cashash_t *map = cashash_create_chain(128);
 
   ck_assert_ptr_nonnull(map);
   ck_assert_uint_eq(cashash_size(map), 0);
@@ -35,7 +35,7 @@ START_TEST(test_create_destroy) {
 END_TEST
 
 START_TEST(test_insert_and_find) {
-  cashash_t *map = cashash_create(128);
+  cashash_t *map = cashash_create_chain(128);
 
   ck_assert_ptr_nonnull(map);
 
@@ -52,7 +52,7 @@ START_TEST(test_insert_and_find) {
 END_TEST
 
 START_TEST(test_insert_and_find_binary_key) {
-  cashash_t *map = cashash_create(128);
+  cashash_t *map = cashash_create_chain(128);
 
   const char key[] = {'n', 'a', '\0', 'm', 'e'};
 
@@ -70,7 +70,7 @@ START_TEST(test_insert_and_find_binary_key) {
 END_TEST
 
 START_TEST(test_binary_keys_with_same_string_prefix_are_distinct) {
-  cashash_t *map = cashash_create(128);
+  cashash_t *map = cashash_create_chain(128);
 
   const char key_a[] = {'a', '\0', 'x'};
   const char key_b[] = {'a', '\0', 'y'};
@@ -94,7 +94,7 @@ START_TEST(test_binary_keys_with_same_string_prefix_are_distinct) {
 END_TEST
 
 START_TEST(test_find_missing_key) {
-  cashash_t *map = cashash_create(128);
+  cashash_t *map = cashash_create_chain(128);
 
   ck_assert_ptr_nonnull(map);
 
@@ -107,7 +107,7 @@ START_TEST(test_find_missing_key) {
 END_TEST
 
 START_TEST(test_update_existing_key) {
-  cashash_t *map = cashash_create(128);
+  cashash_t *map = cashash_create_chain(128);
 
   ck_assert_ptr_nonnull(map);
 
@@ -122,7 +122,7 @@ START_TEST(test_update_existing_key) {
 END_TEST
 
 START_TEST(test_update_existing_binary_key) {
-  cashash_t *map = cashash_create(128);
+  cashash_t *map = cashash_create_chain(128);
 
   const char key[] = {'i', 'd', '\0', '1'};
 
@@ -140,7 +140,7 @@ START_TEST(test_update_existing_binary_key) {
 END_TEST
 
 START_TEST(test_collision_handling) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -159,7 +159,7 @@ START_TEST(test_collision_handling) {
 END_TEST
 
 START_TEST(test_many_items) {
-  cashash_t *map = cashash_create(8);
+  cashash_t *map = cashash_create_chain(8);
 
   ck_assert_ptr_nonnull(map);
 
@@ -182,13 +182,13 @@ START_TEST(test_many_items) {
 END_TEST
 
 START_TEST(test_invalid_arguments) {
-  ck_assert_ptr_null(cashash_create(0));
+  ck_assert_ptr_null(cashash_create_chain(0));
 
   ck_assert(!cashash_insert(NULL, CKEY("key"), CVAL("value")));
   ck_assert_ptr_null(cashash_test_find_str(NULL, CKEY("key")));
   ck_assert_uint_eq(cashash_size(NULL), 0);
 
-  cashash_t *map = cashash_create(128);
+  cashash_t *map = cashash_create_chain(128);
 
   ck_assert_ptr_nonnull(map);
 
@@ -200,7 +200,7 @@ START_TEST(test_invalid_arguments) {
 END_TEST
 
 START_TEST(test_dynamic_growth) {
-  cashash_t *map = cashash_create(2);
+  cashash_t *map = cashash_create_chain(2);
 
   ck_assert_ptr_nonnull(map);
   ck_assert_uint_eq(cashash_bucket_count(map), 2);
@@ -219,7 +219,7 @@ START_TEST(test_dynamic_growth) {
 END_TEST
 
 START_TEST(test_dynamic_growth_preserves_many_items) {
-  cashash_t *map = cashash_create(1);
+  cashash_t *map = cashash_create_chain(1);
 
   ck_assert_ptr_nonnull(map);
 
@@ -249,7 +249,7 @@ START_TEST(test_dynamic_growth_preserves_many_items) {
 END_TEST
 
 START_TEST(test_dynamic_growth_preserves_binary_keys) {
-  cashash_t *map = cashash_create(1);
+  cashash_t *map = cashash_create_chain(1);
 
   const char key_a[] = {'a', '\0', '1'};
   const char key_b[] = {'b', '\0', '2'};
@@ -280,7 +280,7 @@ START_TEST(test_dynamic_growth_preserves_binary_keys) {
 END_TEST
 
 START_TEST(test_update_existing_key_does_not_grow_or_change_size) {
-  cashash_t *map = cashash_create(8);
+  cashash_t *map = cashash_create_chain(8);
 
   ck_assert_ptr_nonnull(map);
 
@@ -299,7 +299,7 @@ START_TEST(test_update_existing_key_does_not_grow_or_change_size) {
 END_TEST
 
 START_TEST(test_remove_existing_key) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -319,7 +319,7 @@ START_TEST(test_remove_existing_key) {
 END_TEST
 
 START_TEST(test_remove_existing_binary_key) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   const char key_a[] = {'a', '\0', 'x'};
   const char key_b[] = {'a', '\0', 'y'};
@@ -346,7 +346,7 @@ START_TEST(test_remove_existing_binary_key) {
 END_TEST
 
 START_TEST(test_remove_missing_key) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -362,7 +362,7 @@ START_TEST(test_remove_missing_key) {
 END_TEST
 
 START_TEST(test_remove_from_empty_table) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -374,7 +374,7 @@ START_TEST(test_remove_from_empty_table) {
 END_TEST
 
 START_TEST(test_remove_null_arguments) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -386,7 +386,7 @@ START_TEST(test_remove_null_arguments) {
 END_TEST
 
 START_TEST(test_remove_from_collision_chain) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -409,7 +409,7 @@ START_TEST(test_remove_from_collision_chain) {
 END_TEST
 
 START_TEST(test_remove_first_node_in_collision_chain) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -430,7 +430,7 @@ START_TEST(test_remove_first_node_in_collision_chain) {
 END_TEST
 
 START_TEST(test_remove_middle_node_in_collision_chain) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -451,7 +451,7 @@ START_TEST(test_remove_middle_node_in_collision_chain) {
 END_TEST
 
 START_TEST(test_remove_last_node_in_collision_chain) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -472,7 +472,7 @@ START_TEST(test_remove_last_node_in_collision_chain) {
 END_TEST
 
 START_TEST(test_remove_preserves_other_keys) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -495,7 +495,7 @@ START_TEST(test_remove_preserves_other_keys) {
 END_TEST
 
 START_TEST(test_clear_empty_table) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -511,7 +511,7 @@ START_TEST(test_clear_empty_table) {
 END_TEST
 
 START_TEST(test_clear_populated_table) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -537,7 +537,7 @@ START_TEST(test_clear_populated_table) {
 END_TEST
 
 START_TEST(test_insert_after_clear) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   ck_assert_ptr_nonnull(map);
 
@@ -565,7 +565,7 @@ START_TEST(test_clear_null_table) { cashash_clear(NULL); }
 END_TEST
 
 START_TEST(test_integer_keys_insert_and_find) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   int key_a = 10;
   int key_b = 20;
@@ -595,7 +595,7 @@ START_TEST(test_integer_keys_insert_and_find) {
 END_TEST
 
 START_TEST(test_integer_key_update) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   int key = 42;
 
@@ -613,7 +613,7 @@ START_TEST(test_integer_key_update) {
 END_TEST
 
 START_TEST(test_integer_key_remove) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   int key_a = 1;
   int key_b = 2;
@@ -638,7 +638,7 @@ START_TEST(test_integer_key_remove) {
 END_TEST
 
 START_TEST(test_long_key_insert_and_find) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   char long_key[4096];
 
@@ -661,7 +661,7 @@ START_TEST(test_long_key_insert_and_find) {
 END_TEST
 
 START_TEST(test_long_keys_with_same_prefix_are_distinct) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   char key_a[2048];
   char key_b[2048];
@@ -693,7 +693,7 @@ START_TEST(test_long_keys_with_same_prefix_are_distinct) {
 END_TEST
 
 START_TEST(test_long_key_survives_dynamic_growth) {
-  cashash_t *map = cashash_create(1);
+  cashash_t *map = cashash_create_chain(1);
 
   char long_key[4096];
   int keys[32];
@@ -729,7 +729,7 @@ START_TEST(test_long_key_survives_dynamic_growth) {
 END_TEST
 
 START_TEST(test_struct_keys_insert_and_find) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   cashash_test_struct_key_t key_a;
   cashash_test_struct_key_t key_b;
@@ -768,7 +768,7 @@ START_TEST(test_struct_keys_insert_and_find) {
 END_TEST
 
 START_TEST(test_struct_key_update) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   cashash_test_struct_key_t key;
 
@@ -793,7 +793,7 @@ START_TEST(test_struct_key_update) {
 END_TEST
 
 START_TEST(test_struct_key_remove) {
-  cashash_t *map = cashash_create(32);
+  cashash_t *map = cashash_create_chain(32);
 
   cashash_test_struct_key_t key_a;
   cashash_test_struct_key_t key_b;
@@ -832,7 +832,7 @@ START_TEST(test_struct_key_remove) {
 END_TEST
 
 START_TEST(test_struct_keys_survive_dynamic_growth) {
-  cashash_t *map = cashash_create(1);
+  cashash_t *map = cashash_create_chain(1);
 
   cashash_test_struct_key_t keys[32];
 

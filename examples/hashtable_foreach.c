@@ -32,7 +32,7 @@ static bool add_value_to_even_keys(cashash_pair_t pair, void *value) {
 }
 
 int main(void) {
-  cashash_t *map = cashash_create(128);
+  cashash_t *map = cashash_create_chain(128);
 
   if (map == NULL) {
     return 1;

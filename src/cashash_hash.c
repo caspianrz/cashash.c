@@ -32,7 +32,7 @@ size_t cashash_hash_fnv1a_bytes(const void *data, size_t len, ...) {
   return (size_t)hash;
 }
 
-bool cashash_equal_fnv1a_bytes(const void *a, const void *b, const size_t len) {
+bool cashash_equal_bytes(const void *a, const void *b, const size_t len) {
   if (a == NULL || b == NULL) {
     return false;
   }
@@ -40,7 +40,7 @@ bool cashash_equal_fnv1a_bytes(const void *a, const void *b, const size_t len) {
   return memcmp(a, b, len) == 0;
 }
 
-void *cashash_copy_fnv1a_bytes(const void *key, const size_t len) {
+void *cashash_copy_bytes(const void *key, const size_t len) {
   void *copy;
 
   if (key == NULL) {
@@ -57,7 +57,7 @@ void *cashash_copy_fnv1a_bytes(const void *key, const size_t len) {
   return copy;
 }
 
-void cashash_key_destroy_fnv1a_bytes(const void *key) { free((void *)key); }
+void cashash_key_destroy_bytes(const void *key) { free((void *)key); }
 
 #ifdef CASHASH_USE_XXHASH
 size_t cashash_hash_xxh3_bytes(const void *data, size_t len, ...) {
