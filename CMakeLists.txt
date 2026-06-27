@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(cashash.c
-	VERSION 0.6.0
+	VERSION 0.7.0
 	DESCRIPTION "A small C hashing library."
 	LANGUAGES C
 )
