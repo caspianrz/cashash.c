@@ -87,6 +87,7 @@ if(CAS_BUILD_EXAMPLE)
         "sample1:examples/sample1.c"
 		"hashtable_iteration:examples/hashtable_iteration.c"
 		"hashtable_foreach:examples/hashtable_foreach.c"
+		"simple_stats:examples/simple_stats.c"
     )
 	if(CAS_USE_XXHASH)
 		list(APPEND examples "sample2:examples/sample2.c")
@@ -123,6 +124,7 @@ if(CAS_BUILD_TESTS)
 		"test_cashash_hash:tests/test_cashash_hash.c"
 		"test_cashash_iter:tests/test_cashash_iter.c"
 		"test_cashash_iter_oa:tests/test_cashash_iter_oa.c"
+		"test_cashash_diagnostics:tests/test_cashash_diagnostics.c"
 	)
 
 	foreach(test ${tests})

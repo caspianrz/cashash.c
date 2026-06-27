@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -193,6 +194,7 @@ static bool cashash_oa_resize(cashash_t *table, size_t new_bucket_count) {
           oa->size++;
         } else if (old_entries[j].state == CASHASH_OA_ENTRY_DELETED) {
           oa->deleted_count++;
+          printf("%lu\n", oa->deleted_count);
         }
       }
 
