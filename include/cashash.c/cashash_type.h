@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef CASHASH_DATA_H
-#define CASHASH_DATA_H
+#ifndef CASHASH_TYPE_H
+#define CASHASH_TYPE_H
 
 #include <cashash.c/cashash_hash.h>
 

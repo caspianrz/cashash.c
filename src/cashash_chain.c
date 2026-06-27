@@ -33,6 +33,7 @@ bool cashash_chain_insert(cashash_t *table, const cashash_key_datum_t key,
   index = hash % table->storage.chain.bucket_count;
 
   node = table->storage.chain.buckets[index];
+
   while (node != NULL) {
     if (node->key.length == key.length &&
         table->config.equal(node->key.data, key.data, key.length)) {
@@ -51,6 +52,7 @@ bool cashash_chain_insert(cashash_t *table, const cashash_key_datum_t key,
 
     new_bucket_count =
         table->storage.chain.bucket_count * CASHASH_GROWTH_FACTOR;
+
     if (new_bucket_count <= table->storage.chain.bucket_count) {
       return false;
     }
@@ -82,7 +84,13 @@ bool cashash_chain_insert(cashash_t *table, const cashash_key_datum_t key,
         node_hash = table->config.hash(node->key.data, node->key.length);
 #endif
 
+        /*
+         * Keep the cached hash correct after rehashing.
+         */
+        node->hash = node_hash;
+
         node_index = node_hash % new_bucket_count;
+
         node->next = new_buckets[node_index];
         new_buckets[node_index] = node;
 
@@ -112,10 +120,11 @@ bool cashash_chain_insert(cashash_t *table, const cashash_key_datum_t key,
     return false;
   }
 
+  new_node->next = table->storage.chain.buckets[index];
+  new_node->hash = hash;
   new_node->key.data = key_copy;
   new_node->key.length = key.length;
   new_node->value = data;
-  new_node->next = table->storage.chain.buckets[index];
 
   table->storage.chain.buckets[index] = new_node;
   table->storage.chain.size++;
