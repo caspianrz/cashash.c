@@ -56,6 +56,7 @@ cashash_t *cashash_create_chain_with_config(size_t bucket_count,
     return NULL;
   }
 
+  // TODO: if equal, copy_key, destroy_key are null set them to default.
   if (config.hash == NULL || config.equal == NULL || config.copy_key == NULL ||
       config.destroy_key == NULL) {
     return NULL;

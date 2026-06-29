@@ -121,6 +121,9 @@ typedef enum cashash_table_kind_e {
   CASHASH_TABLE_OPEN_ADDRESSING
 } cashash_table_kind_t;
 
+
+// TODO: implement CASHASH_CONFIG_INIT
+
 /**
  * @brief Hash table configuration.
  *

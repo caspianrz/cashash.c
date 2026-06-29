@@ -4,12 +4,13 @@ PROJECT_BRIEF          = "Small C string-key hash table library"
 OUTPUT_DIRECTORY       = "@CMAKE_CURRENT_BINARY_DIR@/docs"
 
 INPUT                  = "@CMAKE_CURRENT_SOURCE_DIR@/include" \
-                         "@CMAKE_CURRENT_SOURCE_DIR@/docs/mainpage.md"
+						 "@CMAKE_CURRENT_SOURCE_DIR@/docs"
+						 
 
 USE_MDFILE_AS_MAINPAGE = "@CMAKE_CURRENT_SOURCE_DIR@/docs/mainpage.md"
 
 RECURSIVE              = YES
-FILE_PATTERNS          = *.h *.c
+FILE_PATTERNS          = *.h *.c *.dox *.md
 
 OPTIMIZE_OUTPUT_FOR_C  = YES
 EXTRACT_ALL            = YES
@@ -37,9 +38,7 @@ HTML_EXTRA_STYLESHEET  = @AWESOME_CSS_DIR@/doxygen-awesome.css \
 HTML_EXTRA_FILES       = @AWESOME_CSS_DIR@/doxygen-awesome-darkmode-toggle.js \
                          @CMAKE_CURRENT_SOURCE_DIR@/docs/jquery.min.js
 
-EXCLUDE = "@CMAKE_CURRENT_SOURCE_DIR@/include/cashash.c/internal"
-EXCLUDE_PATTERNS = */internal/* \
-                   */detail/* \
-                   *_internal.h \
-                   *_private.h
 EXCLUDE_SYMBOLS = CASHASH_*_H
+
+ENABLE_PREPROCESSING   = YES
+PREDEFINED             = CASHASH_USE_XXHASH=1

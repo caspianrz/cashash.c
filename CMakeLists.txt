@@ -9,9 +9,15 @@ project(cashash.c
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-option(CAS_BUILD_TESTS "Build cashash tests." ON)
-option(CAS_BUILD_EXAMPLE "Build cashash examples." ON)
-option(CAS_BUILD_DOCS "Build documentation with Doxygen." ON)
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    set(CAS_TOP_LEVEL_PROJECT ON)
+else()
+    set(CAS_TOP_LEVEL_PROJECT OFF)
+endif()
+
+option(CAS_BUILD_TESTS   "Build cashash tests."    ${CAS_TOP_LEVEL_PROJECT})
+option(CAS_BUILD_EXAMPLE "Build cashash examples." ${CAS_TOP_LEVEL_PROJECT})
+option(CAS_BUILD_DOCS    "Build documentation."    ${CAS_TOP_LEVEL_PROJECT})
 
 option(CAS_USE_XXHASH "Use xxHash algorithm library." OFF)
 option(CAS_FETCH_XXHASH "Fetch xxHash if it is not installed." ON)
