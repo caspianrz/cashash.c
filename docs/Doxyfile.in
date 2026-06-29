@@ -1,0 +1,45 @@
+PROJECT_NAME           = "cashash.c"
+PROJECT_BRIEF          = "Small C string-key hash table library"
+
+OUTPUT_DIRECTORY       = "@CMAKE_CURRENT_BINARY_DIR@/docs"
+
+INPUT                  = "@CMAKE_CURRENT_SOURCE_DIR@/include" \
+                         "@CMAKE_CURRENT_SOURCE_DIR@/docs/mainpage.md"
+
+USE_MDFILE_AS_MAINPAGE = "@CMAKE_CURRENT_SOURCE_DIR@/docs/mainpage.md"
+
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.c
+
+OPTIMIZE_OUTPUT_FOR_C  = YES
+EXTRACT_ALL            = YES
+
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = YES
+
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_COLORSTYLE        = LIGHT
+
+SEARCHENGINE           = YES
+
+MERMAID_RENDER_MODE    = CLI
+HTML_HEADER            = "@CMAKE_CURRENT_SOURCE_DIR@/docs/header.html"
+
+HTML_EXTRA_STYLESHEET  = @AWESOME_CSS_DIR@/doxygen-awesome.css \
+                         @AWESOME_CSS_DIR@/doxygen-awesome-sidebar-only.css \
+                         @AWESOME_CSS_DIR@/doxygen-awesome-sidebar-only-darkmode-toggle.css
+
+HTML_EXTRA_FILES       = @AWESOME_CSS_DIR@/doxygen-awesome-darkmode-toggle.js \
+                         @CMAKE_CURRENT_SOURCE_DIR@/docs/jquery.min.js
+
+EXCLUDE = "@CMAKE_CURRENT_SOURCE_DIR@/include/cashash.c/internal"
+EXCLUDE_PATTERNS = */internal/* \
+                   */detail/* \
+                   *_internal.h \
+                   *_private.h
+EXCLUDE_SYMBOLS = CASHASH_*_H

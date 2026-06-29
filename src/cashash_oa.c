@@ -1,4 +1,4 @@
-#include <cashash.c/cashash_oa.h>
+#include <cashash.c/internal/cashash_oa.h>
 
 #include <stdbool.h>
 #include <stddef.h>

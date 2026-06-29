@@ -1,35 +1,41 @@
-# cashash.c
+# cashash.c {#mainpage}
 
-`cashash.c` is a small C hash table library.
+Small C string-key hash table library.
+
+[Download](@ref download) · [API Reference](annotated.html)
+
+## Why cashash.c?
+
+`cashash.c` is a small C hash table library focused on simple usage,
+stable APIs, and multiple collision strategies.
 
 ## Features
 
-- String keys
-- Generic `void *` values
-- Separate chaining
-- FNV-1a hash
-- Dynamic bucket count
+- Separate chaining by default
+- Open addressing support
+- Linear probing
+- Quadratic probing
+- Double hashing
+- Iterator API
+- Diagnostics: validation and statistics
 
-## Example
+## Quick example
 
 ```c
 #include <cashash.c/cashash.h>
 
-#include <stdio.h>
-
 int main(void) {
-    cashash_t *map = cashash_create(128);
+    cashash_t *table = cashash_create(128);
 
-    cashash_insert(map, "hello", "world");
+    const char *key = "hello";
+    const char *value = "world";
 
-    printf("hello: %s\n", (char *)cashash_find(map, "hello"));
+    cashash_insert(
+        table,
+        CASHASH_KEY_STR(key),
+        CASHASH_VALUE_PTR((void *)value)
+    );
 
-    cashash_destroy(map);
-
-    return 0;
+    cashash_destroy(table);
 }
 ```
-
-## Ownership
-The table copies inserted keys.
-The table does not copy or free inserted values.

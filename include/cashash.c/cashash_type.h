@@ -10,6 +10,18 @@
 #include <stdint.h>
 
 /**
+ * @file cashash_type.h
+ * @brief Core type definitions for the cashash hash table.
+ *
+ * This header defines the fundamental data structures used by the cashash
+ * library, including datum types for keys and values, key-value pairs, table
+ * entries, and the main hash table type.
+ *
+ * These types are shared across the public API and supporting modules such as
+ * insertion, lookup, removal, iteration, hashing, and diagnostics.
+ */
+
+/**
  * @brief Built-in hash strategy selector.
  *
  * This enum is used by cashash_create_with_strategy() and stored in

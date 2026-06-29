@@ -1,4 +1,4 @@
-#include <cashash.c/cashash_chain.h>
+#include <cashash.c/internal/cashash_chain.h>
 #include <stdlib.h>
 
 #define CASHASH_MAX_LOAD_NUMERATOR 3

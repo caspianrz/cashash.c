@@ -1,6 +1,6 @@
 #include <cashash.c/cashash.h>
-#include <cashash.c/cashash_chain.h>
-#include <cashash.c/cashash_oa.h>
+#include <cashash.c/internal/cashash_chain.h>
+#include <cashash.c/internal/cashash_oa.h>
 
 #include <stdint.h>
 #include <stdlib.h>

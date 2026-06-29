@@ -162,24 +162,31 @@ if(CAS_BUILD_TESTS)
 endif()
 
 if(CAS_BUILD_DOCS)
-    find_package(Doxygen)
+	find_package(Doxygen)
 
-    if(DOXYGEN_FOUND)
-        set(DOXYGEN_PROJECT_NAME "cashash.c")
-        set(DOXYGEN_PROJECT_BRIEF "Small C string-key hash table library")
-        set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/docs")
-        set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
-        set(DOXYGEN_EXTRACT_ALL NO)
-        set(DOXYGEN_GENERATE_TREEVIEW YES)
-        set(DOXYGEN_USE_MDFILE_AS_MAINPAGE "${CMAKE_CURRENT_SOURCE_DIR}/docs/mainpage.md")
+	if(Doxygen_FOUND)
+		FetchContent_Declare(
+			doxygen-awesome-css
+			GIT_REPOSITORY https://github.com/jothepro/doxygen-awesome-css.git
+			GIT_TAG        v2.4.2
+		)
+		FetchContent_MakeAvailable(doxygen-awesome-css)
+		FetchContent_GetProperties(doxygen-awesome-css SOURCE_DIR AWESOME_CSS_DIR)
 
-        doxygen_add_docs(
-            cashash_docs
-            "${CMAKE_CURRENT_SOURCE_DIR}/include"
-            "${CMAKE_CURRENT_SOURCE_DIR}/docs/mainpage.md"
-            COMMENT "Generating cashash documentation"
-        )
-    else()
-        message(STATUS "Doxygen not found; documentation target disabled")
-    endif()
+		configure_file(
+			"${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile.in"
+			"${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
+			@ONLY
+		)
+
+		doxygen_add_docs(
+			cashash_docs
+			"${CMAKE_CURRENT_SOURCE_DIR}/include"
+			"${CMAKE_CURRENT_SOURCE_DIR}/docs/mainpage.md"
+			COMMENT "Generating cashash documentation"
+			CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
+		)
+	else()
+		message(STATUS "Doxygen not found; documentation target disabled")
+	endif()
 endif()
